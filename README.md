@@ -1,7 +1,7 @@
 # travelog
 
 THE TEAM:
-- Natalie Ramirez, Ansh Suryawanshi, Isabella De Sousa, Luca Rizzo
+- Natalie Ramirez, Ansh Suryawanshi, Isabella De Sousa, Luca Rizzo, Aidan Benedict
 
 PROJECT TOPIC:
 - A social media platform for travelers to log, review, and share their travel itineraries, destinations, and experiences. Combines the personalization of a travel journal with the engagement of social media.
