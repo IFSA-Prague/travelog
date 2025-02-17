@@ -34,7 +34,8 @@ The goal of this project is to create a social media platform for travelers to l
   - Easy implementation for RESTful API 
   - Flask works well with PostgreSQL (structured data like user profiles)
 
-2. Web Server 
-  - Handles HTTP requests
-  - Able to handle requests efficiently
-  - Easily can set up web server using Flask   
+2. Client-Server
+  - The client (frontend) and server (backend) handle different responsibilities, improving maintainability.
+  - Flask allows easy creation of RESTful APIs for communication between the client and server.
+  - Supports database integration (postgreSQL), caching, and middleware for advanced features.
+  - Built-in debugger and testing tools simplify development and troubleshooting.
