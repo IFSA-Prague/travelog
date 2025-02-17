@@ -16,3 +16,10 @@ The goal of this project is to create a social media platform for travelers to l
 
 ### Architecture
 
+Frontend: React.js
+- React’s component-based UI makes features like interactive maps, itineraries, and user feeds dynamic and seamless
+- React routing makes it easy for navigation through the website
+
+Backend: Flask
+- easy implementation for RESTful API 
+- Flask works well with PostgreSQL (structured data like user profiles)
