@@ -15,12 +15,21 @@ The goal of this project is to create a social media platform for travelers to l
 
 
 ### Architecture
+#### Design
+1. Figma
+  - We use Figma to design this web app because it allows for real-time collaboration among team members, and has an intuitive interface that allows us to create the UI we want. Some of the team members also had prior experience with Figma.
 
-Frontend: React.js
-- Component-based UI for dynamic features like interactive maps, itineraries, and user feeds.
-- React Router for handling navigation between pages (Home, Search, Map, My Log, Profile).
-- State management tools like Redux for managing complex application states, such as user data and trip logs.
+#### Frontend
+1. React.js
+  - Component-based UI for dynamic features like interactive maps, itineraries, and user feeds.
+  - React Router for handling navigation between pages (Home, Search, Map, My Log, Profile).
+  - State management tools like Redux for managing complex application states, such as user data and trip logs.
+  - Some of the team members had prior experience with React and there are many resources for the framework to learn and develop with.
 
-Backend: Flask
-- Easy implementation for RESTful API 
-- Flask works well with PostgreSQL (structured data like user profiles)
+2. Map Integration
+  - Integrate Google Maps API to display interactive maps.
+
+#### Backend
+1. Flask
+  - Easy implementation for RESTful API 
+  - Flask works well with PostgreSQL (structured data like user profiles)
