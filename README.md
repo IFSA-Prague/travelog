@@ -33,3 +33,8 @@ The goal of this project is to create a social media platform for travelers to l
 1. Flask
   - Easy implementation for RESTful API 
   - Flask works well with PostgreSQL (structured data like user profiles)
+
+2. Web Server 
+  - Handles HTTP requests
+  - Able to handle requests efficiently
+  - Easily can set up web server using Flask   
