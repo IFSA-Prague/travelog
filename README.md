@@ -14,3 +14,5 @@ The goal of this project is to create a social media platform for travelers to l
 <img width="791" alt="data_diagram" src="https://github.com/user-attachments/assets/304b79df-4e8b-41c4-9fa5-0ec0c6802b5e" />
 
 
+### Architecture
+
