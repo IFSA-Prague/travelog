@@ -22,6 +22,7 @@ The goal of this project is to create a social media platform for travelers to l
       - pip install flask_sqlalchemy
       - pip install psycopg2
       - pip install flask_jwt_extended
+      - python3 app.py
 
 
 ### Data Flow Diagram
