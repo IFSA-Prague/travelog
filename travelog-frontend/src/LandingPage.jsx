@@ -1,18 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Link } from 'react-router-dom';  // Import Link from react-router-dom
 
 const LandingPage = () => {
   const [users, setUsers] = useState([]);
-  const navigate = useNavigate();
 
-  // Check if user is logged in, if so, redirect to HomePage
-  useEffect(() => {
-    if (localStorage.getItem('username')) {
-      navigate('/home');
-    }
-  }, [navigate]);
-
+  // Fetch users from the backend on component mount
   useEffect(() => {
     async function fetchUsers() {
       try {
@@ -22,19 +15,22 @@ const LandingPage = () => {
         console.error('Error fetching users', error);
       }
     }
-    fetchUsers();
-  }, []);
+    fetchUsers();  // Fetch users when the component mounts
+  }, []);  // Empty dependency array to run only once when the component mounts
 
   return (
     <div>
       <h1>Welcome to Travelog</h1>
+
       <p>
+        {/* Link to the Sign Up and Login pages */}
         <Link to="/signup">Sign Up here</Link>
         <br />
         <Link to="/login">Login here</Link>
       </p>
 
-      <h2>List of Users:</h2>
+      <h2>Registered Users:</h2>
+      {/* Display the list of users */}
       {users.length > 0 ? (
         <ul>
           {users.map((user, index) => (
