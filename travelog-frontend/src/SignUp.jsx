@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';  // Import useNavigate
+import { useNavigate } from 'react-router-dom';
 
 const SignUp = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');  // Add password state
-  const navigate = useNavigate();  // Hook to navigate after successful registration
+  const [password, setPassword] = useState('');
+  const navigate = useNavigate();  // Use navigate hook for redirection
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -14,10 +14,11 @@ const SignUp = () => {
       const response = await axios.post('http://127.0.0.1:5000/signup', {
         username,
         email,
-        password,  // Send password to the backend
+        password,
       });
-      alert(response.data.message);  // Alert the user upon success
-      navigate('/home');  // Redirect to Home page after successful signup
+      alert(response.data.message);
+      localStorage.setItem('username', username);  // Store username in localStorage
+      navigate('/home');  // Redirect to Home page after successful sign up
     } catch (error) {
       console.error('There was an error!', error);
     }
@@ -45,7 +46,7 @@ const SignUp = () => {
           type="password"
           placeholder="Password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}  // Capture password
+          onChange={(e) => setPassword(e.target.value)}
           required
         />
         <button type="submit">Sign Up</button>
