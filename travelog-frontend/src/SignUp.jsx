@@ -17,9 +17,15 @@ const SignUp = () => {
         password,  // Send password to the backend
       });
       alert(response.data.message);  // Alert the user upon success
-      navigate('/home');  // Redirect to Home page after successful signup
+      if (response.status === 201) {
+        // Store the username in localStorage after successful signup
+        localStorage.setItem('username', username);
+        // Redirect to Home page after successful signup
+        navigate('/home');
+      }
     } catch (error) {
       console.error('There was an error!', error);
+      alert('Signup failed. Please try again.');
     }
   };
 
