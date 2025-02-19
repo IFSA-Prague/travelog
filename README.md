@@ -10,8 +10,17 @@ A social media platform for travelers to log, review, and share their travel iti
 The goal of this project is to create a social media platform for travelers to log, review, and share their itineraries, destinations, and experiences. Combining the personalization of a travel journal with the engagement of social media, the platform allows users to document trips, share recommendations, and interact with a community of like-minded travelers. It aims to inspire discovery, streamline trip planning, and foster connections through shared experiences.
 
 ### Running the Program
-  - cd to travelog-frontend and type npm run dev in terminal.
-      - Might have to install packages.
+  - To start the frontend:
+      - cd travelog-frontend
+      - npm install
+      - npm run dev
+  - To start the backend:
+      - cd travelog-backend
+      - python3 -m venv venv
+      - source venv/bin/activate (mac) or source venv/bin/activate (windows)
+      - pip install flask_cors
+      - pip install flask_sqlalchemy
+      - pip install psycopg2
 
 
 ### Data Flow Diagram
