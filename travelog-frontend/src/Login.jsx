@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';  // Import useNavigate
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const navigate = useNavigate();  // Hook to navigate after successful login
+  const navigate = useNavigate();  // Use navigate hook for redirection
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -14,13 +14,9 @@ const Login = () => {
         username,
         password,
       });
-      alert(response.data.message);  // Show success or failure message
-      if (response.status === 200) {
-        // Store the username in localStorage
-        localStorage.setItem('username', username);
-        // Redirect to Home page after successful login
-        navigate('/home');
-      }
+      alert(response.data.message);
+      localStorage.setItem('username', username);  // Store username in localStorage
+      navigate('/home');  // Redirect to Home page after successful login
     } catch (error) {
       console.error('There was an error!', error);
       alert('Login failed. Please check your username and password.');
