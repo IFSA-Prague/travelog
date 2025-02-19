@@ -17,7 +17,7 @@ The goal of this project is to create a social media platform for travelers to l
   - To start the backend:
       - cd travelog-backend
       - python3 -m venv venv
-      - source venv/bin/activate (mac) or .\venv\Scripts\activate (windows)
+      - source venv/bin/activate (mac) or source venv/bin/activate (windows)
       - pip install flask_cors
       - pip install flask_sqlalchemy
       - pip install psycopg2
