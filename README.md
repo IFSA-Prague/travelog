@@ -23,7 +23,8 @@ The goal of this project is to create a social media platform for travelers to l
       - pip install psycopg2
       - pip install flask_jwt_extended
       - python3 app.py
-      - make sure that you change line 11 to include your name(# Set up the database URI for SQLAlchemy app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://[YOUR NAME]:1212@localhost/travelog')
+      - In travelog-backend directory, app.py file: Change line 11 to include your name:
+        - `# Set up the database URI for SQLAlchemy app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://[YOUR NAME]:1212@localhost/travelog'`
 
 
 
