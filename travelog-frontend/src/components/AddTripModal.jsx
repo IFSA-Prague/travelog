@@ -116,7 +116,7 @@ const AddTripModal = ({ isOpen, onClose, onSubmit }) => {
               name="otherNotes"
               value={formData.otherNotes}
               onChange={handleChange}
-              placeholder="Add any additional notes, memories, or recommendations..."
+              placeholder="Add any additional notes..."
             />
           </FormGroup>
 
