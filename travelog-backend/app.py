@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
 # Set up the database URI for SQLAlchemy
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://ansh:your_password@localhost/travelog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://aidan:your_password@localhost/travelog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database and JWT manager
