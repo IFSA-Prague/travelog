@@ -31,9 +31,6 @@ const HomePage = () => {
       <h1>Home Page</h1>
       {/* Personalized greeting */}
       {username && <h2>Hi, {username}!</h2>}  {/* Show Hi <username> */}
-      
-      {/* Sign Out Button */}
-      <button onClick={handleSignOut}>Sign Out</button>
     </div>
   );
 };

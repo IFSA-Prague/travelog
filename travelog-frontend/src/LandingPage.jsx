@@ -24,9 +24,9 @@ const LandingPage = () => {
 
       <p>
         {/* Link to the Sign Up and Login pages */}
-        <Link to="/signup">Sign Up here</Link>
+        <Link to="/signup">Sign Up Here</Link>
         <br />
-        <Link to="/login">Login here</Link>
+        <Link to="/login">Login Here</Link>
       </p>
 
       <h2>Registered Users:</h2>

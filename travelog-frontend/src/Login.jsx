@@ -14,10 +14,10 @@ const Login = () => {
         username,
         password,
       });
-      alert(response.data.message);  // Show success or failure message
       if (response.status === 200) {
         // Store the username in localStorage
         localStorage.setItem('username', username);
+        window.dispatchEvent(new Event('storage'));  // Trigger storage event manually
         // Redirect to Home page after successful login
         navigate('/home');
       }

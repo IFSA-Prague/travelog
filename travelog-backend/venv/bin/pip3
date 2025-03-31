@@ -1,4 +1,4 @@
-#!/Users/natalieramirez/umich/prague/classes/swe/travelog/travelog-backend/venv/bin/python3.12
+#!/Users/ansh/Desktop/SWE_Prague/travelog/travelog-backend/venv/bin/python3.11
 # -*- coding: utf-8 -*-
 import re
 import sys

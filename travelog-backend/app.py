@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required
+from flask_jwt_extended import JWTManager
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
 # Set up the database URI for SQLAlchemy
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://natalieramirez:your_password@localhost/travelog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://ansh:your_password@localhost/travelog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database and JWT manager
@@ -20,6 +20,8 @@ jwt = JWTManager(app)
 
 # Define your User model
 class User(db.Model):
+    __tablename__ = 'users'
+    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
