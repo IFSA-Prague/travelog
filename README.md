@@ -57,3 +57,8 @@ The goal of this project is to create a social media platform for travelers to l
   - Flask allows easy creation of RESTful APIs for communication between the client and server.
   - Supports database integration (postgreSQL), caching, and middleware for advanced features.
   - Built-in debugger and testing tools simplify development and troubleshooting.
+
+
+#### Research Papers
+[2554850.2554902.pdf](https://github.com/user-attachments/files/19633390/2554850.2554902.pdf)
+
