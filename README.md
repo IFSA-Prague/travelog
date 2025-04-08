@@ -62,5 +62,6 @@ The goal of this project is to create a social media platform for travelers to l
 #### Research Papers
 * Success Factors in Social Media Platforms: [2554850.2554902.pdf](https://github.com/user-attachments/files/19633390/2554850.2554902.pdf)
 * Understanding Consumer Engagement in Social Media: [1-s2.0-S0167923621002177-main.pdf](https://github.com/user-attachments/files/19633565/1-s2.0-S0167923621002177-main.pdf)
+* Empowering Engagement with Social Media: https://doi.org/10.1080/1553118X.2017.1284072
 
 
