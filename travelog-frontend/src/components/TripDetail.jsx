@@ -14,7 +14,7 @@ const TripDetail = ({ trip, onClose }) => {
           <Section>
             <SectionTitle>Trip Dates</SectionTitle>
             <SectionContent>
-              {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+              {new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}
             </SectionContent>
           </Section>
 
@@ -25,24 +25,24 @@ const TripDetail = ({ trip, onClose }) => {
             </Section>
           )}
 
-          {trip.favoriteRestaurants && (
+          {trip.favorite_restaurants && (
             <Section>
               <SectionTitle>Favorite Restaurants</SectionTitle>
-              <SectionContent>{trip.favoriteRestaurants}</SectionContent>
+              <SectionContent>{trip.favorite_restaurants}</SectionContent>
             </Section>
           )}
 
-          {trip.favoriteAttractions && (
+          {trip.favorite_attractions && (
             <Section>
               <SectionTitle>Favorite Scenic Visits / Attractions</SectionTitle>
-              <SectionContent>{trip.favoriteAttractions}</SectionContent>
+              <SectionContent>{trip.favorite_attractions}</SectionContent>
             </Section>
           )}
 
-          {trip.otherNotes && (
+          {trip.other_notes && (
             <Section>
               <SectionTitle>Other Notes</SectionTitle>
-              <SectionContent>{trip.otherNotes}</SectionContent>
+              <SectionContent>{trip.other_notes}</SectionContent>
             </Section>
           )}
         </Content>
@@ -51,6 +51,7 @@ const TripDetail = ({ trip, onClose }) => {
   );
 };
 
+// Styled components
 const ModalOverlay = styled.div`
   position: fixed;
   top: 0;
@@ -125,4 +126,4 @@ const SectionContent = styled.div`
   white-space: pre-wrap;
 `;
 
-export default TripDetail; 
+export default TripDetail;
