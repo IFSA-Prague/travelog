@@ -1,15 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import AddTripModal from './components/AddTripModal';
 import TripDetail from './components/TripDetail';
+import axios from 'axios';
 
 const MyLog = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [trips, setTrips] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
 
-  const handleAddTrip = (tripData) => {
-    setTrips(prevTrips => [...prevTrips, { ...tripData, id: Date.now() }]);
+  const user = JSON.parse(localStorage.getItem('user'));
+
+  const fetchTrips = async () => {
+    if (!user?.id) return;
+
+    try {
+      const response = await axios.get(`http://127.0.0.1:5000/trips/${user.id}`);
+      setTrips(response.data);
+    } catch (error) {
+      console.error('Error fetching trips:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchTrips();
+  }, []);
+
+  const handleAddTrip = async (tripData) => {
+    if (!user?.id) return;
+
+    const fullTripData = {
+      user_id: user.id,
+      city: tripData.city,
+      country: tripData.country,
+      start_date: tripData.startDate,
+      end_date: tripData.endDate,
+      accommodation: tripData.accommodation,
+      favorite_restaurants: tripData.favoriteRestaurants,
+      favorite_attractions: tripData.favoriteAttractions,
+      other_notes: tripData.otherNotes,
+    };
+
+    try {
+      const response = await axios.post('http://127.0.0.1:5000/trips', fullTripData);
+      console.log("Trip created:", response.data);
+      fetchTrips(); // Refresh from DB after adding
+    } catch (err) {
+      console.error("Trip creation failed:", err);
+    }
   };
 
   const handleTripClick = (trip) => {
@@ -31,7 +69,7 @@ const MyLog = () => {
               <TripCountry>{trip.country}</TripCountry>
             </TripHeader>
             <TripDates>
-              {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+              {new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}
             </TripDates>
             {trip.accommodation && (
               <TripDetailContainer>
@@ -59,6 +97,7 @@ const MyLog = () => {
   );
 };
 
+// Styled components
 const Container = styled.div`
   padding: 2rem;
   max-width: 1200px;

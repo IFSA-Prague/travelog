@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';  // Import useNavigate
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const navigate = useNavigate();  // Hook to navigate after successful login
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -15,14 +15,15 @@ const Login = () => {
         password,
       });
       if (response.status === 200) {
-        // Store the username in localStorage
-        localStorage.setItem('username', username);
-        window.dispatchEvent(new Event('storage'));  // Trigger storage event manually
-        // Redirect to Home page after successful login
+        const user = response.data.user;
+        // Store the full user object
+        localStorage.removeItem('username'); // Cleanup old key
+        localStorage.setItem('user', JSON.stringify(user));
+        window.dispatchEvent(new Event('storage'));
         navigate('/home');
       }
     } catch (error) {
-      console.error('There was an error!', error);
+      console.error('Login error:', error);
       alert('Login failed. Please check your username and password.');
     }
   };

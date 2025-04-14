@@ -9,22 +9,22 @@ import Search from "./Search";
 import MyLog from "./MyLog";
 
 const AppRouter = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("username"));
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("user"));
 
   const handleStorageChange = () => {
-    setIsLoggedIn(!!localStorage.getItem("username")); // Update state when localStorage changes
+    setIsLoggedIn(!!localStorage.getItem("user"));
   };
 
   useEffect(() => {
-    window.addEventListener("storage", handleStorageChange); // Listen for storage changes
+    window.addEventListener("storage", handleStorageChange);
     return () => {
-      window.removeEventListener("storage", handleStorageChange); // Cleanup listener
+      window.removeEventListener("storage", handleStorageChange);
     };
-  }, []); // Run only once on mount
+  }, []);
 
   return (
     <Router>
-      {isLoggedIn && <Navbar />} {/* Render Navbar only if logged in */}
+      {isLoggedIn && <Navbar />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/signup" element={<SignUp />} />
