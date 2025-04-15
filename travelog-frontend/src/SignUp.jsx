@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';  // Import useNavigate
+import styled from 'styled-components';
 
 const SignUp = () => {
   const [username, setUsername] = useState('');
@@ -30,34 +31,71 @@ const SignUp = () => {
   };
 
   return (
-    <div>
+    <PageContainer>
       <h1>Sign Up</h1>
-      <form onSubmit={handleSubmit}>
-        <input
+      <Form onSubmit={handleSubmit}>
+        <Input
           type="text"
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
         />
-        <input
+        <Input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <input
+        <Input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}  // Capture password
           required
         />
-        <button type="submit">Sign Up</button>
-      </form>
-    </div>
+        <Button type="submit">Sign Up</Button>
+      </Form>
+    </PageContainer>
   );
 };
+
+const PageContainer = styled.div`
+  padding: 100px 20px 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+  max-width: 400px;
+`;
+
+const Input = styled.input`
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+`;
+
+const Button = styled.button`
+  padding: 12px;
+  background-color: #3b5bdb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #2f4ac0;
+  }
+`;
 
 export default SignUp;

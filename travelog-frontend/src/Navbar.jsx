@@ -13,7 +13,9 @@ const Navbar = () => {
 
   return (
     <NavBar>
-      <Logo to="/home">travelog</Logo>
+      <LogoLink to="/home">
+        <LogoImage src="/travelog-logo.png" alt="Travelog" />
+      </LogoLink>
       <NavLinks>
         <NavItem to="/home">Home</NavItem>
         <NavItem to="/search">Search</NavItem>
@@ -40,11 +42,15 @@ const NavBar = styled.div`
   z-index: 10;
 `;
 
-const Logo = styled(Link)`
-  font-size: 20px;
-  font-weight: 700;
-  color: #3b5bdb;
+const LogoLink = styled(Link)`
   text-decoration: none;
+  display: flex;
+  align-items: center;
+`;
+
+const LogoImage = styled.img`
+  height: 40px;
+  width: auto;
 `;
 
 const NavLinks = styled.div`
@@ -76,4 +82,5 @@ const SignOut = styled.button`
     text-decoration: underline;
   }
 `;
+
 export default Navbar;
