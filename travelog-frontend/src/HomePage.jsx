@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
 
 const HomePage = () => {
   const [users, setUsers] = useState([]);
@@ -28,7 +29,7 @@ const HomePage = () => {
   };
 
   return (
-    <div>
+    <PageContainer>
       <h1>Hi, {username}!</h1>
 
       <div className="following">
@@ -38,8 +39,13 @@ const HomePage = () => {
       <div className="bookmarked">
         <h2>Bookmarked Cities</h2>
       </div>
-    </div>
+    </PageContainer>
   );
 };
+
+const PageContainer = styled.div`
+  padding: 100px 20px 20px;
+  min-height: 100vh;
+`;
 
 export default HomePage;
