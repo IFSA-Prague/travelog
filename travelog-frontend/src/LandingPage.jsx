@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
+import travelogLogo from './assets/travelog-logo.png';
 
 const LandingPage = () => {
   const [users, setUsers] = useState([]);
@@ -24,7 +25,7 @@ const LandingPage = () => {
     <PageContainer>
       <Content>
         <LogoContainer>
-          <Logo src="/travelog-logo.png" alt="Travelog" />
+          <Logo src={travelogLogo} alt="Travelog" />
         </LogoContainer>
         <Links>
           <StyledLink to="/signup">Sign Up Here</StyledLink>
