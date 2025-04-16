@@ -1,3 +1,4 @@
+// src/MyLog.jsx
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import AddTripModal from './components/AddTripModal';
@@ -6,31 +7,23 @@ import axios from 'axios';
 import { FaPlus, FaMapMarkerAlt, FaCalendarAlt, FaUser } from 'react-icons/fa';
 
 const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 `;
 
 const MyLog = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [trips, setTrips] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
-
   const user = JSON.parse(localStorage.getItem('user'));
 
   const fetchTrips = async () => {
     if (!user?.id) return;
-
     try {
-      const response = await axios.get(`http://localhost:5050/trips/${user.id}`);
-      setTrips(response.data);
+      const res = await axios.get(`http://localhost:5050/trips/${user.id}`);
+      setTrips(res.data);
     } catch (error) {
-      console.error('Error fetching trips:', error);
+      console.error("Error fetching trips:", error);
     }
   };
 
@@ -38,33 +31,19 @@ const MyLog = () => {
     fetchTrips();
   }, []);
 
-  const handleAddTrip = async (tripData) => {
-    if (!user?.id) return;
-
-    const fullTripData = {
-      user_id: user.id,
-      city: tripData.city,
-      country: tripData.country,
-      start_date: tripData.startDate,
-      end_date: tripData.endDate,
-      accommodation: tripData.accommodation,
-      favorite_restaurants: tripData.favoriteRestaurants,
-      favorite_attractions: tripData.favoriteAttractions,
-      other_notes: tripData.otherNotes,
-    };
-
+  const handleAddTrip = async (formData) => {
     try {
-      const response = await axios.post('http://localhost:5050/trips', fullTripData);
-      console.log("Trip created:", response.data);
+      const res = await axios.post('http://localhost:5050/trips', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      console.log("Trip created:", res.data);
       fetchTrips();
     } catch (err) {
       console.error("Trip creation failed:", err);
     }
   };
 
-  const handleTripClick = (trip) => {
-    setSelectedTrip(trip);
-  };
+  const handleTripClick = (trip) => setSelectedTrip(trip);
 
   return (
     <PageContainer>
@@ -84,19 +63,13 @@ const MyLog = () => {
           <EmptyStateIcon>✈️</EmptyStateIcon>
           <EmptyStateTitle>No trips yet</EmptyStateTitle>
           <EmptyStateText>Start your travel journey by adding your first trip!</EmptyStateText>
-          <AddButton onClick={() => setIsModalOpen(true)}>
-            <FaPlus />
-            <span>Add Your First Trip</span>
-          </AddButton>
         </EmptyState>
       ) : (
         <TripsGrid>
           {trips.map((trip) => (
             <TripCard key={trip.id} onClick={() => handleTripClick(trip)}>
               <TripImage>
-                <MapIcon>
-                  <FaMapMarkerAlt />
-                </MapIcon>
+                <MapIcon><FaMapMarkerAlt /></MapIcon>
               </TripImage>
               <TripContent>
                 <TripLocation>
@@ -106,13 +79,10 @@ const MyLog = () => {
                 <TripInfo>
                   <DateRange>
                     <FaCalendarAlt />
-                    <span>
-                      {new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}
-                    </span>
+                    <span>{new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}</span>
                   </DateRange>
                   <UserInfo>
-                    <FaUser />
-                    <span>{user.username}</span>
+                    <FaUser /><span>{user.username}</span>
                   </UserInfo>
                 </TripInfo>
               </TripContent>
@@ -137,12 +107,13 @@ const MyLog = () => {
   );
 };
 
+// Styled components (same as before)
 const PageContainer = styled.div`
   width: 100%;
   min-height: calc(100vh - 64px);
   margin-top: 64px;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 40px 20px; /* Reduced side padding from 80px to 20px */
+  padding: 40px 20px;
   animation: ${fadeIn} 0.5s ease-out;
 `;
 
@@ -206,7 +177,7 @@ const AddButton = styled.button`
 
 const TripsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Slightly reduced minimum size */
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 24px;
   width: 100%;
 `;
