@@ -6,7 +6,6 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const handleSignOut = () => {
-    localStorage.removeItem('username');  // Remove username from localStorage
     window.dispatchEvent(new Event('storage')); //Trigger storage event manually
     navigate('/');  // Redirect to Landing page
   };
