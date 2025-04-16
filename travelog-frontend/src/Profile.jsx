@@ -6,8 +6,6 @@ const Profile = () => {
   const navigate = useNavigate();
 
   const handleSignOut = () => {
-    // Remove username from localStorage to log the user out
-    localStorage.removeItem('username');
     // Navigate to the LandingPage after sign out
     navigate('/');  // Redirect to the LandingPage
   };

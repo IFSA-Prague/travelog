@@ -19,9 +19,15 @@ const SignUp = () => {
       });
       alert(response.data.message);  // Alert the user upon success
       if (response.status === 201) {
-        // Store the username in localStorage after successful signup
-        localStorage.setItem('username', username);
-        // Redirect to Home page after successful signup
+        // Immediately log the user in after successful signup
+        const loginRes = await axios.post('http://localhost:5050/login', {
+          username,
+          password,
+        });
+
+        const user = loginRes.data.user;
+        localStorage.setItem('user', JSON.stringify(user));
+        window.dispatchEvent(new Event('storage')); // update Navbar state
         navigate('/home');
       }
     } catch (error) {

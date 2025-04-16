@@ -17,7 +17,6 @@ const Login = () => {
       });
       if (response.status === 200) {
         const user = response.data.user;
-        localStorage.removeItem('username');
         localStorage.setItem('user', JSON.stringify(user));
         window.dispatchEvent(new Event('storage'));
         navigate('/home');
