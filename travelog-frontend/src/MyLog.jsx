@@ -27,7 +27,7 @@ const MyLog = () => {
     if (!user?.id) return;
 
     try {
-      const response = await axios.get(`http://127.0.0.1:5000/trips/${user.id}`);
+      const response = await axios.get(`http://localhost:5050/trips/${user.id}`);
       setTrips(response.data);
     } catch (error) {
       console.error('Error fetching trips:', error);
@@ -54,7 +54,7 @@ const MyLog = () => {
     };
 
     try {
-      const response = await axios.post('http://127.0.0.1:5000/trips', fullTripData);
+      const response = await axios.post('http://localhost:5050/trips', fullTripData);
       console.log("Trip created:", response.data);
       fetchTrips();
     } catch (err) {

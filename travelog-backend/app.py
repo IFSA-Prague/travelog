@@ -1,29 +1,34 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
-from datetime import datetime
+from flask_jwt_extended import JWTManager, create_access_token
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://aidan:your_password@localhost/travelog'
+# CORS config for local dev
+CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+
+# App config (hardcoded for now)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://natalieramirez:your_password@localhost/travelog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'your_jwt_secret_key'
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
 
+# Models
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
+    password = db.Column(db.Text, nullable=False)
 
 class Trip(db.Model):
     __tablename__ = 'trips'
-
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     city = db.Column(db.String(120), nullable=False)
@@ -31,11 +36,9 @@ class Trip(db.Model):
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     accommodation = db.Column(db.String(120), nullable=True)
-
     favorite_restaurants = db.Column(db.Text, nullable=True)
     favorite_attractions = db.Column(db.Text, nullable=True)
     other_notes = db.Column(db.Text, nullable=True)
-
     user = db.relationship('User', backref=db.backref('trips', lazy=True))
 
     def to_dict(self):
@@ -52,6 +55,7 @@ class Trip(db.Model):
             'other_notes': self.other_notes,
         }
 
+# Routes
 @app.route('/users', methods=['GET'])
 def get_users():
     users = User.query.all()
@@ -61,41 +65,66 @@ def get_users():
         'email': user.email
     } for user in users])
 
-@app.route('/users/<username>', methods=['GET'])
-def get_user_by_username(username):
-    user = User.query.filter_by(username=username).first()
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-    return jsonify({
-        "id": user.id,
-        "username": user.username,
-        "email": user.email
-    })
-
 @app.route('/signup', methods=['POST'])
 def signup():
-    data = request.get_json()
-    if User.query.filter_by(email=data['email']).first():
-        return jsonify({"message": "Email already exists"}), 400
-    new_user = User(username=data['username'], email=data['email'], password=data['password'])
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({"message": "User created!"}), 201
+    try:
+        data = request.get_json()
+        print("➡️ Signup data received:", data)
+
+        email = data.get('email')
+        username = data.get('username')
+        password = data.get('password')
+
+        if not email or not username or not password:
+            return jsonify({"message": "Missing fields"}), 400
+
+        if User.query.filter_by(email=email).first():
+            return jsonify({"message": "Email already exists"}), 400
+        if User.query.filter_by(username=username).first():
+            return jsonify({"message": "Username already exists"}), 400
+
+        hashed_password = generate_password_hash(password)
+        new_user = User(username=username, email=email, password=hashed_password)
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify({"message": "User created!"}), 201
+    except Exception as e:
+        print("❌ Signup error:", e)
+        return jsonify({"message": "Error creating user"}), 500
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    user = User.query.filter_by(username=data['username']).first()
-    if user and user.password == data['password']:
+    try:
+        data = request.get_json()
+        print("➡️ Login data received:", data)
+
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not password:
+            return jsonify({"message": "Missing username or password"}), 400
+
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        if not check_password_hash(user.password, password):
+            return jsonify({"message": "Incorrect password"}), 401
+
+        access_token = create_access_token(identity=user.id)
+
         return jsonify({
             "message": "Login successful!",
             "user": {
                 "id": user.id,
                 "username": user.username,
                 "email": user.email
-            }
+            },
+            "token": access_token
         }), 200
-    return jsonify({"message": "Invalid credentials"}), 401
+    except Exception as e:
+        print("❌ Login error:", e)
+        return jsonify({"message": "Login failed"}), 500
 
 @app.route('/trips', methods=['POST'])
 def add_trip():
@@ -116,7 +145,7 @@ def add_trip():
         db.session.commit()
         return jsonify({"message": "Trip added!", "trip": new_trip.to_dict()}), 201
     except Exception as e:
-        print("Error adding trip:", e)
+        print("❌ Error adding trip:", e)
         return jsonify({"error": "Trip creation failed"}), 500
 
 @app.route('/trips/<int:user_id>', methods=['GET'])
@@ -124,15 +153,20 @@ def get_user_trips(user_id):
     trips = Trip.query.filter_by(user_id=user_id).all()
     return jsonify([trip.to_dict() for trip in trips])
 
+# Optional debug route
+@app.route('/ping')
+def ping():
+    return jsonify({"message": "pong!"})
+
+# DB setup
 RESET_DB_ON_START = False
 
 if __name__ == '__main__':
-    if RESET_DB_ON_START:
-        with app.app_context():
+    with app.app_context():
+        if RESET_DB_ON_START:
             db.drop_all()
             db.create_all()
-            print("Database schema reset.")
-    else:
-        with app.app_context():
-            db.create_all()  # Ensure tables exist if not resetting
-    app.run(debug=True)
+            print("🗑️ Database schema reset.")
+        else:
+            db.create_all()
+    app.run(debug=True, host="0.0.0.0", port=5050)

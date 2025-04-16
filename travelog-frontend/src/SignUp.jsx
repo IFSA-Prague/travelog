@@ -12,7 +12,7 @@ const SignUp = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://127.0.0.1:5000/signup', {
+      const response = await axios.post('http://localhost:5050/signup', {
         username,
         email,
         password,  // Send password to the backend
@@ -25,7 +25,7 @@ const SignUp = () => {
         navigate('/home');
       }
     } catch (error) {
-      console.error('There was an error!', error);
+      console.error("Signup error:", error.response?.data || error.message);
       alert('Signup failed. Please try again.');
     }
   };

@@ -14,7 +14,7 @@ const HomePage = () => {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const response = await axios.get('http://127.0.0.1:5000/users');
+        const response = await axios.get('http://localhost:5050/users');
         setUsers(response.data);
       } catch (error) {
         console.error('Error fetching users', error);
