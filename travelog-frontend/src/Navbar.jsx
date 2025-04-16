@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';  // For navigation
 import styled from 'styled-components';
+import travelogLogo from './assets/travelog-logo.png';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ const Navbar = () => {
   return (
     <NavBar>
       <LogoLink to="/home">
-        <LogoImage src="/travelog-logo.png" alt="Travelog" />
+        <LogoImage src={travelogLogo} alt="Travelog" />
       </LogoLink>
       <NavLinks>
         <NavItem to="/home">Home</NavItem>
@@ -31,7 +32,7 @@ const NavBar = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 15px;
+  padding: 0 24px; /* increased padding for breathing room */
   height: 64px;
   background-color: white;
   border-bottom: 1px solid #ddd;
@@ -73,7 +74,7 @@ const SignOut = styled.button`
   background: none;
   border: none;
   color: #e53935;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   cursor: pointer;
 
