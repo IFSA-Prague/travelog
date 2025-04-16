@@ -11,7 +11,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://127.0.0.1:5000/login', {
+      const response = await axios.post('http://localhost:5050/login', {
         username,
         password,
       });
@@ -23,7 +23,7 @@ const Login = () => {
         navigate('/home');
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error("Login error:", error.response?.data || error.message);
       alert('Login failed. Please check your username and password.');
     }
   };

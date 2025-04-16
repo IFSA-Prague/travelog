@@ -9,15 +9,16 @@ const LandingPage = () => {
   // Fetch users from the backend on component mount
   useEffect(() => {
     async function fetchUsers() {
+      console.log("➡️ Making API request to /users...");
       try {
-        const response = await axios.get('http://127.0.0.1:5000/users');
-        setUsers(response.data);  // Set the users data in the state
+        const response = await axios.get('http://localhost:5050/users');
+        setUsers(response.data);
       } catch (error) {
         console.error('Error fetching users', error);
       }
     }
-    fetchUsers();  // Fetch users when the component mounts
-  }, []);  // Empty dependency array to run only once when the component mounts
+    fetchUsers();
+  }, []);
 
   return (
     <PageContainer>
