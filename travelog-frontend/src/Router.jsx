@@ -7,6 +7,7 @@ import HomePage from "./HomePage";
 import Navbar from "./Navbar";
 import Search from "./Search";
 import MyLog from "./MyLog";
+import MapPage from "./MapPage";
 
 const AppRouter = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("user"));
@@ -40,6 +41,7 @@ const AppRouter = () => {
         <Route path="/home" element={<HomePage />} />
         <Route path="/search" element={<Search />} />
         <Route path="/mylog" element={<MyLog />} />
+        <Route path="/map" element={<MapPage />} />
       </Routes>
     </>
   );

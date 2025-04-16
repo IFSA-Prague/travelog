@@ -10,7 +10,8 @@ const AddTripModal = ({ isOpen, onClose, onSubmit }) => {
     accommodation: '',
     favoriteRestaurants: '',
     favoriteAttractions: '',
-    otherNotes: ''
+    otherNotes: '',
+    media: []
   });
 
   const handleChange = (e) => {
@@ -21,9 +22,34 @@ const AddTripModal = ({ isOpen, onClose, onSubmit }) => {
     }));
   };
 
+  const handleMediaChange = (e) => {
+    const files = Array.from(e.target.files).slice(0, 10); // max 10 files
+    setFormData(prev => ({
+      ...prev,
+      media: files
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+
+    const submission = new FormData();
+
+    // Add user_id from localStorage
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user?.id) {
+      submission.append('user_id', user.id);
+    }
+
+    Object.entries(formData).forEach(([key, value]) => {
+      if (key === "media") {
+        value.forEach((file) => submission.append("media", file));
+      } else {
+        submission.append(key, value);
+      }
+    });
+
+    onSubmit(submission);
     onClose();
   };
 
@@ -117,6 +143,17 @@ const AddTripModal = ({ isOpen, onClose, onSubmit }) => {
               value={formData.otherNotes}
               onChange={handleChange}
               placeholder="Add any additional notes..."
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Upload Photos or Videos (up to 10)</Label>
+            <Input
+              type="file"
+              name="media"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleMediaChange}
             />
           </FormGroup>
 

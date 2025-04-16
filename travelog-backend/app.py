@@ -6,11 +6,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-
-# CORS config for local dev
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
 
-# App config (hardcoded for now)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://natalieramirez:your_password@localhost/travelog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'your_jwt_secret_key'
@@ -19,7 +16,7 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
 
-# Models
+# ----------------------- Models -----------------------
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -39,6 +36,7 @@ class Trip(db.Model):
     favorite_restaurants = db.Column(db.Text, nullable=True)
     favorite_attractions = db.Column(db.Text, nullable=True)
     other_notes = db.Column(db.Text, nullable=True)
+    photos = db.Column(db.JSON, nullable=True)
     user = db.relationship('User', backref=db.backref('trips', lazy=True))
 
     def to_dict(self):
@@ -53,9 +51,10 @@ class Trip(db.Model):
             'favorite_restaurants': self.favorite_restaurants,
             'favorite_attractions': self.favorite_attractions,
             'other_notes': self.other_notes,
+            'photos': self.photos or []
         }
 
-# Routes
+# ----------------------- Routes -----------------------
 @app.route('/users', methods=['GET'])
 def get_users():
     users = User.query.all()
@@ -69,8 +68,6 @@ def get_users():
 def signup():
     try:
         data = request.get_json()
-        print("➡️ Signup data received:", data)
-
         email = data.get('email')
         username = data.get('username')
         password = data.get('password')
@@ -89,15 +86,13 @@ def signup():
         db.session.commit()
         return jsonify({"message": "User created!"}), 201
     except Exception as e:
-        print("❌ Signup error:", e)
+        print("Signup error:", e)
         return jsonify({"message": "Error creating user"}), 500
 
 @app.route('/login', methods=['POST'])
 def login():
     try:
         data = request.get_json()
-        print("➡️ Login data received:", data)
-
         username = data.get('username')
         password = data.get('password')
 
@@ -123,23 +118,34 @@ def login():
             "token": access_token
         }), 200
     except Exception as e:
-        print("❌ Login error:", e)
+        print("Login error:", e)
         return jsonify({"message": "Login failed"}), 500
 
 @app.route('/trips', methods=['POST'])
 def add_trip():
     try:
-        data = request.get_json()
+        form = request.form
+        files = request.files.getlist('media')
+
+        # Store file metadata (or implement file saving logic later)
+        photo_metadata = []
+        for file in files:
+            photo_metadata.append({
+                "filename": file.filename,
+                "mimetype": file.mimetype
+            })
+
         new_trip = Trip(
-            user_id=data['user_id'],
-            city=data['city'],
-            country=data['country'],
-            start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date(),
-            end_date=datetime.strptime(data['end_date'], '%Y-%m-%d').date(),
-            accommodation=data.get('accommodation'),
-            favorite_restaurants=data.get('favorite_restaurants'),
-            favorite_attractions=data.get('favorite_attractions'),
-            other_notes=data.get('other_notes'),
+            user_id=form['user_id'],
+            city=form['city'],
+            country=form['country'],
+            start_date=datetime.strptime(form['startDate'], '%Y-%m-%d').date(),
+            end_date=datetime.strptime(form['endDate'], '%Y-%m-%d').date(),
+            accommodation=form.get('accommodation'),
+            favorite_restaurants=form.get('favoriteRestaurants'),
+            favorite_attractions=form.get('favoriteAttractions'),
+            other_notes=form.get('otherNotes'),
+            photos=photo_metadata
         )
         db.session.add(new_trip)
         db.session.commit()
@@ -153,12 +159,11 @@ def get_user_trips(user_id):
     trips = Trip.query.filter_by(user_id=user_id).all()
     return jsonify([trip.to_dict() for trip in trips])
 
-# Optional debug route
 @app.route('/ping')
 def ping():
     return jsonify({"message": "pong!"})
 
-# DB setup
+# ----------------------- DB Init -----------------------
 RESET_DB_ON_START = False
 
 if __name__ == '__main__':
