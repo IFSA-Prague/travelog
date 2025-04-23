@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
+import os
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
@@ -12,6 +13,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://natalieramirez:your_passwo
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'your_jwt_secret_key'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
+
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
@@ -23,6 +28,20 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.Text, nullable=False)
+
+    followers = db.relationship(
+        'User',
+        secondary='follows',
+        primaryjoin='User.id==Follow.followed_id',
+        secondaryjoin='User.id==Follow.follower_id',
+        backref='following'
+    )
+
+class Follow(db.Model):
+    __tablename__ = 'follows'
+    id = db.Column(db.Integer, primary_key=True)
+    follower_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    followed_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
 class Trip(db.Model):
     __tablename__ = 'trips'
@@ -63,6 +82,70 @@ def get_users():
         'username': user.username,
         'email': user.email
     } for user in users])
+
+@app.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    user = User.query.get(user_id)
+    if user:
+        return jsonify({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email
+        })
+    return jsonify({'error': 'User not found'}), 404
+
+@app.route('/users/<int:user_id>/followers', methods=['GET'])
+def get_followers(user_id):
+    user = User.query.get(user_id)
+    if user:
+        followers = [{"id": f.id, "username": f.username} for f in user.followers]
+        return jsonify(followers)
+    return jsonify([])
+
+@app.route('/users/<int:user_id>/following', methods=['GET'])
+def get_following(user_id):
+    user = User.query.get(user_id)
+    if user:
+        following = [{"id": u.id, "username": u.username} for u in user.following]
+        return jsonify(following)
+    return jsonify([])
+
+@app.route('/users/<int:user_id>/follow', methods=['POST'])
+def follow_user(user_id):
+    target_id = request.json.get("target_user_id")
+    if not target_id:
+        return jsonify({"error": "Missing target user id"}), 400
+    existing = Follow.query.filter_by(follower_id=user_id, followed_id=target_id).first()
+    if not existing:
+        new_follow = Follow(follower_id=user_id, followed_id=target_id)
+        db.session.add(new_follow)
+        db.session.commit()
+    return jsonify({"message": "Followed"})
+
+@app.route('/users/<int:user_id>/unfollow', methods=['POST'])
+def unfollow_user(user_id):
+    target_id = request.json.get("target_user_id")
+    follow = Follow.query.filter_by(follower_id=user_id, followed_id=target_id).first()
+    if follow:
+        db.session.delete(follow)
+        db.session.commit()
+    return jsonify({"message": "Unfollowed"})
+
+@app.route('/users/<int:user_id>/upload_photo', methods=['POST'])
+def upload_profile_photo(user_id):
+    file = request.files.get('photo')
+    if not file:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    filename = f"user_{user_id}.png"
+    path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(path)
+
+    return jsonify({"message": "Photo uploaded", "photo_url": f"/uploads/{filename}"}), 200
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/signup', methods=['POST'])
 def signup():
@@ -127,7 +210,6 @@ def add_trip():
         form = request.form
         files = request.files.getlist('media')
 
-        # Store file metadata (or implement file saving logic later)
         photo_metadata = []
         for file in files:
             photo_metadata.append({
@@ -151,7 +233,7 @@ def add_trip():
         db.session.commit()
         return jsonify({"message": "Trip added!", "trip": new_trip.to_dict()}), 201
     except Exception as e:
-        print("❌ Error adding trip:", e)
+        print("Error adding trip:", e)
         return jsonify({"error": "Trip creation failed"}), 500
 
 @app.route('/trips/<int:user_id>', methods=['GET'])
@@ -171,7 +253,7 @@ if __name__ == '__main__':
         if RESET_DB_ON_START:
             db.drop_all()
             db.create_all()
-            print("🗑️ Database schema reset.")
+            print("Database schema reset.")
         else:
             db.create_all()
     app.run(debug=True, host="0.0.0.0", port=5050)

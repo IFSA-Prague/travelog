@@ -21,6 +21,7 @@ const Navbar = () => {
         <NavItem to="/search">Search</NavItem>
         <NavItem to="/map">Map</NavItem>
         <NavItem to="/mylog">My Log</NavItem>
+        <NavItem to="/profile">Profile</NavItem>
         <SignOut onClick={handleSignOut}>Sign Out</SignOut>
       </NavLinks>
     </NavBar>
