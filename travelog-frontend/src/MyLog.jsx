@@ -43,6 +43,10 @@ const MyLog = () => {
     }
   };
 
+  const handleDeleteTrip = (tripId) => {
+    setTrips(prevTrips => prevTrips.filter(trip => trip.id !== tripId));
+  };
+
   const handleTripClick = (trip) => setSelectedTrip(trip);
 
   return (
@@ -105,6 +109,7 @@ const MyLog = () => {
         <TripDetail
           trip={selectedTrip}
           onClose={() => setSelectedTrip(null)}
+          onDelete={handleDeleteTrip}
         />
       )}
     </PageContainer>

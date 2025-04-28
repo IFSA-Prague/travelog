@@ -181,6 +181,26 @@ def get_user_trips(user_id):
     trips = Trip.query.filter_by(user_id=user_id).all()
     return jsonify([trip.to_dict() for trip in trips])
 
+@app.route('/trips/<int:trip_id>', methods=['DELETE'])
+def delete_trip(trip_id):
+    try:
+        trip = Trip.query.get_or_404(trip_id)
+        
+        # Delete associated photos from the filesystem
+        if trip.photos:
+            for photo in trip.photos:
+                if 'filename' in photo:
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], photo['filename'])
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+        
+        db.session.delete(trip)
+        db.session.commit()
+        return jsonify({"message": "Trip deleted successfully"}), 200
+    except Exception as e:
+        print("❌ Error deleting trip:", e)
+        return jsonify({"error": "Failed to delete trip"}), 500
+
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
