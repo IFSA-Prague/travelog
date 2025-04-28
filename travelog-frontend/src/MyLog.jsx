@@ -68,8 +68,12 @@ const MyLog = () => {
         <TripsGrid>
           {trips.map((trip) => (
             <TripCard key={trip.id} onClick={() => handleTripClick(trip)}>
-              <TripImage>
-                <MapIcon><FaMapMarkerAlt /></MapIcon>
+              <TripImage $hasImage={trip.photos && trip.photos.length > 0}>
+                {trip.photos && trip.photos.length > 0 ? (
+                  <img src={trip.photos[0].url} alt={`${trip.city} trip`} />
+                ) : (
+                  <MapIcon><FaMapMarkerAlt /></MapIcon>
+                )}
               </TripImage>
               <TripContent>
                 <TripLocation>
@@ -199,12 +203,20 @@ const TripCard = styled.div`
 `;
 
 const TripImage = styled.div`
-  height: 160px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   position: relative;
+  width: 100%;
+  height: 200px;
+  background: ${props => props.$hasImage ? 'none' : '#f0f0f0'};
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 `;
 
 const MapIcon = styled.div`

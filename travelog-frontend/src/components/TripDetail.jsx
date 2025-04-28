@@ -11,6 +11,19 @@ const TripDetail = ({ trip, onClose }) => {
         </ModalHeader>
 
         <Content>
+          {trip.photos && trip.photos.length > 0 && (
+            <Section>
+              <SectionTitle>Photos</SectionTitle>
+              <PhotoGrid>
+                {trip.photos.map((photo, index) => (
+                  <PhotoItem key={index}>
+                    <img src={photo.url} alt={`Photo ${index + 1}`} />
+                  </PhotoItem>
+                ))}
+              </PhotoGrid>
+            </Section>
+          )}
+
           <Section>
             <SectionTitle>Trip Dates</SectionTitle>
             <SectionContent>
@@ -124,6 +137,31 @@ const SectionContent = styled.div`
   color: #666;
   line-height: 1.6;
   white-space: pre-wrap;
+`;
+
+const PhotoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+`;
+
+const PhotoItem = styled.div`
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+
+    &:hover {
+      transform: scale(1.05);
+    }
+  }
 `;
 
 export default TripDetail;
