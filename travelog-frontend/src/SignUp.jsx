@@ -15,19 +15,19 @@ const SignUp = () => {
       const response = await axios.post('http://localhost:5050/signup', {
         username,
         email,
-        password,  // Send password to the backend
+        password,
       });
-      alert(response.data.message);  // Alert the user upon success
+      alert(response.data.message);
       if (response.status === 201) {
         // Immediately log the user in after successful signup
         const loginRes = await axios.post('http://localhost:5050/login', {
-          username,
+          username, // ✅ correct now
           password,
         });
 
         const user = loginRes.data.user;
         localStorage.setItem('user', JSON.stringify(user));
-        window.dispatchEvent(new Event('storage')); // update Navbar state
+        window.dispatchEvent(new Event('storage'));
         navigate('/home');
       }
     } catch (error) {
