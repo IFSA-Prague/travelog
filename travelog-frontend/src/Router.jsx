@@ -9,29 +9,26 @@ import Search from "./Search";
 import MyLog from "./MyLog";
 import MapPage from "./MapPage";
 import Profile from "./Profile";
+import UserProfile from './UserProfile';
 
 const AppRouter = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("user"));
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("user"));  
   const [showNavbar, setShowNavbar] = useState(false);
-
   const handleStorageChange = () => {
     setIsLoggedIn(!!localStorage.getItem("user"));
   };
-
   useEffect(() => {
     window.addEventListener("storage", handleStorageChange);
     return () => {
       window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
-
   // Determine whether to show navbar
   const location = useLocation();
   useEffect(() => {
     const publicRoutes = ["/", "/signup", "/login"];
     setShowNavbar(isLoggedIn && !publicRoutes.includes(location.pathname));
   }, [location, isLoggedIn]);
-
   return (
     <>
       {showNavbar && <Navbar />}
@@ -44,16 +41,15 @@ const AppRouter = () => {
         <Route path="/mylog" element={<MyLog />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/user/:username" element={<UserProfile />} />
       </Routes>
     </>
-  );
+  );  
 };
-
 // This wrapper is needed to use `useLocation` outside of Routes
 const RouterWrapper = () => (
   <Router>
     <AppRouter />
   </Router>
 );
-
 export default RouterWrapper;
