@@ -1,16 +1,68 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 
-const TripDetail = ({ trip, onClose }) => {
+const TripDetail = ({ trip, onClose, onDelete }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await axios.delete(`http://localhost:5050/trips/${trip.id}`);
+      onDelete(trip.id);
+      onClose();
+    } catch (error) {
+      console.error("Error deleting trip:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <ModalOverlay onClick={onClose}>
       <ModalContent onClick={e => e.stopPropagation()}>
         <ModalHeader>
           <TripTitle>{trip.city}, {trip.country}</TripTitle>
-          <CloseButton onClick={onClose}>&times;</CloseButton>
+          <ButtonGroup>
+            <DeleteButton 
+              onClick={() => setShowConfirm(true)}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Trip'}
+            </DeleteButton>
+            <CloseButton onClick={onClose}>&times;</CloseButton>
+          </ButtonGroup>
         </ModalHeader>
 
+        {showConfirm && (
+          <ConfirmDialog>
+            <ConfirmText>Are you sure you want to delete this trip?</ConfirmText>
+            <ConfirmButtons>
+              <ConfirmButton onClick={handleDelete} disabled={isDeleting}>
+                Yes, Delete
+              </ConfirmButton>
+              <CancelButton onClick={() => setShowConfirm(false)}>
+                Cancel
+              </CancelButton>
+            </ConfirmButtons>
+          </ConfirmDialog>
+        )}
+
         <Content>
+          {trip.photos && trip.photos.length > 0 && (
+            <Section>
+              <SectionTitle>Photos</SectionTitle>
+              <PhotoGrid>
+                {trip.photos.map((photo, index) => (
+                  <PhotoItem key={index}>
+                    <img src={photo.url} alt={`Photo ${index + 1}`} />
+                  </PhotoItem>
+                ))}
+              </PhotoGrid>
+            </Section>
+          )}
+
           <Section>
             <SectionTitle>Trip Dates</SectionTitle>
             <SectionContent>
@@ -124,6 +176,108 @@ const SectionContent = styled.div`
   color: #666;
   line-height: 1.6;
   white-space: pre-wrap;
+`;
+
+const PhotoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+`;
+
+const PhotoItem = styled.div`
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+
+    &:hover {
+      transform: scale(1.05);
+    }
+  }
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+`;
+
+const DeleteButton = styled.button`
+  background: #ff4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: #cc0000;
+  }
+
+  &:disabled {
+    background: #ff9999;
+    cursor: not-allowed;
+  }
+`;
+
+const ConfirmDialog = styled.div`
+  background: #fff3f3;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+`;
+
+const ConfirmText = styled.p`
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 16px;
+`;
+
+const ConfirmButtons = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const ConfirmButton = styled.button`
+  background: #ff4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:hover {
+    background: #cc0000;
+  }
+
+  &:disabled {
+    background: #ff9999;
+    cursor: not-allowed;
+  }
+`;
+
+const CancelButton = styled.button`
+  background: #666;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:hover {
+    background: #444;
+  }
 `;
 
 export default TripDetail;

@@ -2,19 +2,27 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token
+from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
+import uuid
+
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'static/uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://natalieramirez:your_password@localhost/travelog'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://aidan:your_password@localhost/travelog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'your_jwt_secret_key'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
-UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 jwt = JWTManager(app)
 # ----------------------- Models -----------------------
 class User(db.Model):
@@ -50,6 +58,12 @@ class Trip(db.Model):
     photos = db.Column(db.JSON, nullable=True)
     user = db.relationship('User', backref=db.backref('trips', lazy=True))
     def to_dict(self):
+        photos = self.photos or []
+        # Convert relative URLs to absolute URLs
+        for photo in photos:
+            if 'url' in photo:
+                photo['url'] = f"http://localhost:5050{photo['url']}"
+        
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -61,7 +75,7 @@ class Trip(db.Model):
             'favorite_restaurants': self.favorite_restaurants,
             'favorite_attractions': self.favorite_attractions,
             'other_notes': self.other_notes,
-            'photos': self.photos or []
+            'photos': photos
         }
 # ----------------------- Routes -----------------------
 @app.route('/users', methods=['GET'])
@@ -189,10 +203,16 @@ def add_trip():
         files = request.files.getlist('media')
         photo_metadata = []
         for file in files:
-            photo_metadata.append({
-                "filename": file.filename,
-                "mimetype": file.mimetype
-            })
+            if file.filename:
+                filename = f"{uuid.uuid4()}_{file.filename}"
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(file_path)
+
+                photo_metadata.append({
+                    "filename": filename,
+                    "url": f"/uploads/{filename}",
+                    "mimetype": file.mimetype
+                })
         new_trip = Trip(
             user_id=form['user_id'],
             city=form['city'],
@@ -215,6 +235,31 @@ def add_trip():
 def get_user_trips(user_id):
     trips = Trip.query.filter_by(user_id=user_id).all()
     return jsonify([trip.to_dict() for trip in trips])
+
+@app.route('/trips/<int:trip_id>', methods=['DELETE'])
+def delete_trip(trip_id):
+    try:
+        trip = Trip.query.get_or_404(trip_id)
+        
+        # Delete associated photos from the filesystem
+        if trip.photos:
+            for photo in trip.photos:
+                if 'filename' in photo:
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], photo['filename'])
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+        
+        db.session.delete(trip)
+        db.session.commit()
+        return jsonify({"message": "Trip deleted successfully"}), 200
+    except Exception as e:
+        print("❌ Error deleting trip:", e)
+        return jsonify({"error": "Failed to delete trip"}), 500
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 @app.route('/ping')
 def ping():
     return jsonify({"message": "pong!"})
