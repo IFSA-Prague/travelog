@@ -18,7 +18,7 @@ const HomePage = () => {
   const [users, setUsers] = useState([]);
   const navigate = useNavigate();
 
-  const user = JSON.parse(localStorage.getItem('user'));
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const username = user?.username;
 
   useEffect(() => {
