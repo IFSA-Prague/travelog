@@ -14,14 +14,19 @@ const fadeIn = keyframes`
     transform: translateY(0);
   }
 `;
+
 const Search = () => {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
+  const [trips, setTrips] = useState([]);
   const [following, setFollowing] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [recentSearches, setRecentSearches] = useState([]);
+  const [searchType, setSearchType] = useState('users');
+  const [selectedTrip, setSelectedTrip] = useState(null);
   const navigate = useNavigate();
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem("user");
@@ -33,6 +38,7 @@ const Search = () => {
       console.error("Error parsing user from localStorage");
     }
   }, []);
+
   useEffect(() => {
     if (!currentUser) return;
     const fetchUsers = async () => {
@@ -51,13 +57,33 @@ const Search = () => {
     };
     fetchUsers();
   }, [currentUser]);
+
   useEffect(() => {
-    const lower = query.toLowerCase();
-    const filtered = users.filter(
-      (u) => u.id !== currentUser?.id && u.username.toLowerCase().includes(lower)
-    );
-    setFilteredUsers(filtered);
-  }, [query, users, currentUser]);
+    if (query) {
+      if (searchType === 'users') {
+        const lower = query.toLowerCase();
+        const filtered = users.filter(
+          (u) => u.id !== currentUser?.id && u.username.toLowerCase().includes(lower)
+        );
+        setFilteredUsers(filtered);
+      } else {
+        const searchTrips = async () => {
+          try {
+            const response = await axios.get(`/trips/search/${query}`);
+            setTrips(response.data);
+          } catch (error) {
+            console.error("Error searching trips:", error);
+            setTrips([]);
+          }
+        };
+        searchTrips();
+      }
+    } else {
+      setFilteredUsers(users);
+      setTrips([]);
+    }
+  }, [query, users, currentUser, searchType]);
+
   const isFollowing = (userId) => following.some((u) => u.id === userId);
   const toggleFollow = async (targetId) => {
     try {
@@ -69,13 +95,18 @@ const Search = () => {
       console.error("Failed to follow/unfollow", err);
     }
   };
+
+  const handleTripClick = (trip) => {
+    setSelectedTrip(trip);
+  };
+
   const handleUserClick = (username) => {
     setRecentSearches((prev) => {
       const updated = [username, ...prev.filter((u) => u !== username)].slice(0, 5);
       localStorage.setItem("recentSearches", JSON.stringify(updated));
       return updated;
     });
-    navigate('/profile');
+    navigate(`/user/${username}`);
   };
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -84,43 +115,136 @@ const Search = () => {
   return (
     <PageContainer>
       <Card>  
-        <Heading>Search Users</Heading>
+        <Heading>Search</Heading>
+        <SearchTypeSelector>
+          <SearchTypeButton 
+            $active={searchType === 'users'} 
+            onClick={() => setSearchType('users')}
+          >
+            Users
+          </SearchTypeButton>
+          <SearchTypeButton 
+            $active={searchType === 'cities'} 
+            onClick={() => setSearchType('cities')}
+          >
+            Cities
+          </SearchTypeButton>
+        </SearchTypeSelector>
         <SearchRow>
           <SearchInput
             type="text"
-            placeholder="Search for a user (e.g., alice123)"
+            placeholder={searchType === 'users' ? "Search for a user (e.g., alice123)" : "Search for a city (e.g., Prague)"}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </SearchRow>
-        {query && filteredUsers.length === 0 && (
-          <NoResults>No users found.</NoResults>
+        
+        {searchType === 'users' ? (
+          <>
+            {query && filteredUsers.length === 0 && (
+              <NoResults>No users found.</NoResults>
+            )}
+            {filteredUsers.length > 0 && (
+              <UserList>
+                {filteredUsers.map((user) => (
+                  <UserCard key={user.id}>
+                    <UserInfo onClick={() => handleUserClick(user.username)} style={{ cursor: 'pointer' }}>
+                      <Avatar
+                        src={getAvatarUrl(user.id)}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = defaultAvatar;
+                        }}
+                      />
+                      <Username>{user.username}</Username>
+                    </UserInfo>
+                    <FollowButton
+                      $following={isFollowing(user.id)}
+                      onClick={() => toggleFollow(user.id)}
+                    >
+                      {isFollowing(user.id) ? 'Unfollow' : 'Follow'}
+                    </FollowButton>
+                  </UserCard>
+                ))}
+              </UserList>
+            )}
+          </>
+        ) : (
+          <>
+            {query && trips.length === 0 && (
+              <NoResults>No trips found in this city.</NoResults>
+            )}
+            {trips.length > 0 && (
+              <TripsList>
+                {trips.map((trip) => (
+                  <TripCard key={trip.id} onClick={() => handleTripClick(trip)}>
+                    <TripImage $hasImage={trip.photos && trip.photos.length > 0}>
+                      {trip.photos && trip.photos.length > 0 ? (
+                        <img src={trip.photos[0].url} alt={`${trip.city} trip`} />
+                      ) : (
+                        <MapIcon>📍</MapIcon>
+                      )}
+                    </TripImage>
+                    <TripInfo>
+                      <TripLocation>
+                        <City>{trip.city}</City>
+                        <Country>{trip.country}</Country>
+                      </TripLocation>
+                      <TripUser onClick={(e) => {
+                        e.stopPropagation();
+                        handleUserClick(trip.username);
+                      }}>
+                        <UserIcon>👤</UserIcon>
+                        <Username>{trip.username}</Username>
+                      </TripUser>
+                      <TripDates>
+                        {new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}
+                      </TripDates>
+                    </TripInfo>
+                  </TripCard>
+                ))}
+              </TripsList>
+            )}
+            {selectedTrip && (
+              <TripModal onClose={() => setSelectedTrip(null)}>
+                <ModalContent>
+                  <ModalHeader>
+                    <ModalTitle>{selectedTrip.city}, {selectedTrip.country}</ModalTitle>
+                    <CloseButton onClick={() => setSelectedTrip(null)}>&times;</CloseButton>
+                  </ModalHeader>
+                  <ModalBody>
+                    {selectedTrip.photos && selectedTrip.photos.length > 0 && (
+                      <PhotoGrid>
+                        {selectedTrip.photos.map((photo, index) => (
+                          <Photo key={index} src={photo.url} alt={`Photo ${index + 1}`} />
+                        ))}
+                      </PhotoGrid>
+                    )}
+                    <TripDetails>
+                      <DetailSection>
+                        <DetailTitle>Accommodation</DetailTitle>
+                        <DetailText>{selectedTrip.accommodation || 'Not specified'}</DetailText>
+                      </DetailSection>
+                      <DetailSection>
+                        <DetailTitle>Favorite Restaurants</DetailTitle>
+                        <DetailText>{selectedTrip.favorite_restaurants || 'Not specified'}</DetailText>
+                      </DetailSection>
+                      <DetailSection>
+                        <DetailTitle>Favorite Attractions</DetailTitle>
+                        <DetailText>{selectedTrip.favorite_attractions || 'Not specified'}</DetailText>
+                      </DetailSection>
+                      <DetailSection>
+                        <DetailTitle>Other Notes</DetailTitle>
+                        <DetailText>{selectedTrip.other_notes || 'Not specified'}</DetailText>
+                      </DetailSection>
+                    </TripDetails>
+                  </ModalBody>
+                </ModalContent>
+              </TripModal>
+            )}
+          </>
         )}
-        {filteredUsers.length > 0 && (
-          <UserList>
-            {filteredUsers.map((user) => (
-              <UserCard key={user.id}>
-                <UserInfo onClick={() => handleUserClick(user.username)} style={{ cursor: 'pointer' }}>
-                  <Avatar
-                    src={getAvatarUrl(user.id)}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = defaultAvatar;
-                    }}
-                  />
-                  <Username>{user.username}</Username>
-                </UserInfo>
-                <FollowButton
-                  $following={isFollowing(user.id)}
-                  onClick={() => toggleFollow(user.id)}
-                >
-                  {isFollowing(user.id) ? 'Unfollow' : 'Follow'}
-  
-                </FollowButton>
-              </UserCard>
-            ))}
-          </UserList>
-        )}
+
         {recentSearches.length > 0 && !query && (
           <RecentBox>
             <h4>Recent Searches</h4>
@@ -133,7 +257,9 @@ const Search = () => {
     </PageContainer>
   );
 };
+
 export default Search;
+
 const PageContainer = styled.div`
   width: 100%;
   min-height: calc(100vh - 64px);
@@ -235,4 +361,201 @@ const RecentItem = styled.div`
   &:hover {
     text-decoration: underline;
   }
+`;
+
+const SearchTypeSelector = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+`;
+
+const SearchTypeButton = styled.button`
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 2px solid ${props => props.$active ? '#3b5bdb' : '#ddd'};
+  background-color: ${props => props.$active ? '#3b5bdb' : 'white'};
+  color: ${props => props.$active ? 'white' : '#333'};
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #3b5bdb;
+  }
+`;
+
+const TripsList = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+`;
+
+const TripCard = styled.div`
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+  }
+`;
+
+const TripImage = styled.div`
+  position: relative;
+  width: 100%;
+  height: 150px;
+  background: ${props => props.$hasImage ? 'none' : '#f0f0f0'};
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const MapIcon = styled.div`
+  font-size: 32px;
+  color: #4263eb;
+  opacity: 0.8;
+`;
+
+const TripInfo = styled.div`
+  padding: 16px;
+`;
+
+const TripLocation = styled.div`
+  margin-bottom: 8px;
+`;
+
+const City = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+`;
+
+const Country = styled.p`
+  font-size: 14px;
+  color: #666;
+  margin: 4px 0 0 0;
+`;
+
+const TripDates = styled.p`
+  font-size: 14px;
+  color: #666;
+  margin: 8px 0 0 0;
+`;
+
+const TripUser = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  cursor: pointer;
+  color: #3b5bdb;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const UserIcon = styled.span`
+  font-size: 16px;
+`;
+
+const TripModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+`;
+
+const ModalBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+`;
+
+const PhotoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+`;
+
+const Photo = styled.img`
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+`;
+
+const TripDetails = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const DetailSection = styled.div`
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+`;
+
+const DetailTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+`;
+
+const DetailText = styled.p`
+  font-size: 16px;
+  color: #333;
+  line-height: 1.5;
+  white-space: pre-wrap;
 `;
