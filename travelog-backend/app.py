@@ -58,6 +58,8 @@ class Trip(db.Model):
     favorite_attractions = db.Column(db.Text, nullable=True)
     other_notes = db.Column(db.Text, nullable=True)
     photos = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # NEW FIELD
+
     user = db.relationship('User', backref=db.backref('trips', lazy=True))
 
     def to_dict(self):
@@ -68,6 +70,7 @@ class Trip(db.Model):
         return {
             'id': self.id,
             'user_id': self.user_id,
+            'username': self.user.username if self.user else None,  # 👈 ADD THIS
             'city': self.city,
             'country': self.country,
             'start_date': str(self.start_date),
@@ -78,6 +81,7 @@ class Trip(db.Model):
             'other_notes': self.other_notes,
             'photos': photos
         }
+
 
 # ----------------------- User Routes -----------------------
 
@@ -246,6 +250,19 @@ def delete_trip(trip_id):
     except Exception as e:
         print("Error deleting trip:", e)
         return jsonify({"error": "Failed to delete trip"}), 500
+
+# ----------------------- Feed Routes -----------------------
+@app.route('/feed/<int:user_id>', methods=['GET'])
+def get_following_feed(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    following_ids = [u.id for u in user.following]
+
+    trips = Trip.query.filter(Trip.user_id.in_(following_ids)).order_by(Trip.created_at.desc()).all()
+
+    return jsonify([trip.to_dict() for trip in trips])
 
 # ----------------------- Upload Access -----------------------
 @app.route('/uploads/<filename>')

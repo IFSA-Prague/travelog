@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
+import { FaMapMarkerAlt, FaCalendarAlt, FaUser } from 'react-icons/fa';
 
 const fadeIn = keyframes`
   from {
@@ -15,22 +16,21 @@ const fadeIn = keyframes`
 `;
 
 const HomePage = () => {
-  const [users, setUsers] = useState([]);
+  const [feedTrips, setFeedTrips] = useState([]);
   const navigate = useNavigate();
-
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const username = user?.username;
 
   useEffect(() => {
-    async function fetchUsers() {
+    async function fetchFeed() {
       try {
-        const response = await axios.get('http://localhost:5050/users');
-        setUsers(response.data);
+        if (!user?.id) return;
+        const res = await axios.get(`http://localhost:5050/feed/${user.id}`);
+        setFeedTrips(res.data);
       } catch (error) {
-        console.error('Error fetching users', error);
+        console.error('Error fetching feed trips', error);
       }
     }
-    fetchUsers();
+    fetchFeed();
   }, []);
 
   const handleSignOut = () => {
@@ -41,13 +41,44 @@ const HomePage = () => {
   return (
     <PageContainer>
       <GreetingCard>
-        <Greeting>Hi, {username}!</Greeting>
+        <Greeting>Hi, {user?.username}!</Greeting>
         <SubHeading>Welcome back to your travel feed 🌍</SubHeading>
       </GreetingCard>
 
       <SectionCard>
         <SectionTitle>Following Feed</SectionTitle>
-        <SectionContent>Coming soon...</SectionContent>
+        {feedTrips.length === 0 ? (
+          <SectionContent>No posts from people you follow yet.</SectionContent>
+        ) : (
+          <TripsGrid>
+            {feedTrips.map((trip) => (
+              <TripCard key={trip.id}>
+                <TripImage $hasImage={trip.photos && trip.photos.length > 0}>
+                  {trip.photos && trip.photos.length > 0 ? (
+                    <img src={trip.photos[0].url} alt={`${trip.city} trip`} />
+                  ) : (
+                    <MapIcon><FaMapMarkerAlt /></MapIcon>
+                  )}
+                </TripImage>
+                <TripContent>
+                  <TripLocation>
+                    <City>{trip.city}</City>
+                    <Country>{trip.country}</Country>
+                  </TripLocation>
+                  <TripInfo>
+                    <DateRange>
+                      <FaCalendarAlt />
+                      <span>{new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}</span>
+                    </DateRange>
+                    <UserInfo>
+                      <FaUser /><span>by {trip.username}</span>
+                    </UserInfo>
+                  </TripInfo>
+                </TripContent>
+              </TripCard>
+            ))}
+          </TripsGrid>
+        )}
       </SectionCard>
 
       <SectionCard>
@@ -58,6 +89,7 @@ const HomePage = () => {
   );
 };
 
+// Styled components (reusing from your other files!)
 const PageContainer = styled.div`
   width: 100%;
   min-height: calc(100vh - 64px);
@@ -106,6 +138,97 @@ const SectionTitle = styled.h2`
 const SectionContent = styled.p`
   font-size: 16px;
   color: #555;
+`;
+
+const TripsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+`;
+
+const TripCard = styled.div`
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const TripImage = styled.div`
+  width: 100%;
+  height: 200px;
+  background: ${props => props.$hasImage ? 'none' : '#f0f0f0'};
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const MapIcon = styled.div`
+  font-size: 48px;
+  color: #4263eb;
+  opacity: 0.8;
+`;
+
+const TripContent = styled.div`
+  padding: 20px;
+`;
+
+const TripLocation = styled.div`
+  margin-bottom: 8px;
+`;
+
+const City = styled.h3`
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+`;
+
+const Country = styled.h4`
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+`;
+
+const TripInfo = styled.div`
+  margin-top: 12px;
+`;
+
+const DateRange = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+
+  svg {
+    color: #4263eb;
+  }
+`;
+
+const UserInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+
+  svg {
+    color: #4263eb;
+  }
 `;
 
 export default HomePage;
