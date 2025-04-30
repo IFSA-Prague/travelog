@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import defaultAvatar from './assets/user-no-set-photo.jpg';
+import defaultAvatar from './assets/default-avatar.jpg';
 
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(20px); }

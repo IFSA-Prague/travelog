@@ -44,6 +44,21 @@ class Follow(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     follower_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     followed_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+class Like(db.Model):
+    __tablename__ = 'likes'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    trip_id = db.Column(db.Integer, db.ForeignKey('trips.id'), nullable=False)
+
+class Comment(db.Model):
+    __tablename__ = 'comments'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    trip_id = db.Column(db.Integer, db.ForeignKey('trips.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class Trip(db.Model):
     __tablename__ = 'trips'
@@ -67,10 +82,14 @@ class Trip(db.Model):
         for photo in photos:
             if 'url' in photo:
                 photo['url'] = f"http://localhost:5050{photo['url']}"
+
+        likes = Like.query.filter_by(trip_id=self.id).all()
+        comments = Comment.query.filter_by(trip_id=self.id).order_by(Comment.created_at.asc()).all()
+
         return {
             'id': self.id,
             'user_id': self.user_id,
-            'username': self.user.username if self.user else None,  # 👈 ADD THIS
+            'username': self.user.username if self.user else None,
             'city': self.city,
             'country': self.country,
             'start_date': str(self.start_date),
@@ -79,9 +98,16 @@ class Trip(db.Model):
             'favorite_restaurants': self.favorite_restaurants,
             'favorite_attractions': self.favorite_attractions,
             'other_notes': self.other_notes,
-            'photos': photos
+            'photos': photos,
+            'likes': [like.user_id for like in likes],  # 🔥 Add this line
+            'comments': [{
+                'id': c.id,
+                'user_id': c.user_id,
+                'username': User.query.get(c.user_id).username,
+                'content': c.content,
+                'created_at': c.created_at.isoformat()
+            } for c in comments]
         }
-
 
 # ----------------------- User Routes -----------------------
 
@@ -263,6 +289,86 @@ def get_following_feed(user_id):
     trips = Trip.query.filter(Trip.user_id.in_(following_ids)).order_by(Trip.created_at.desc()).all()
 
     return jsonify([trip.to_dict() for trip in trips])
+
+@app.route('/trips/<int:trip_id>/like', methods=['POST'])
+def like_trip(trip_id):
+    user_id = request.json.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Missing user_id'}), 400
+    existing = Like.query.filter_by(user_id=user_id, trip_id=trip_id).first()
+    if not existing:
+        like = Like(user_id=user_id, trip_id=trip_id)
+        db.session.add(like)
+        db.session.commit()
+    return jsonify({'message': 'Liked'})
+
+@app.route('/trips/<int:trip_id>/unlike', methods=['POST'])
+def unlike_trip(trip_id):
+    user_id = request.json.get('user_id')
+    like = Like.query.filter_by(user_id=user_id, trip_id=trip_id).first()
+    if like:
+        db.session.delete(like)
+        db.session.commit()
+    return jsonify({'message': 'Unliked'})
+
+@app.route('/trips/<int:trip_id>/comment', methods=['POST'])
+def comment_trip(trip_id):
+    data = request.get_json()
+    user_id = data.get("user_id")
+    content = data.get("content")
+
+    if not user_id or not content:
+        return jsonify({"error": "Missing user_id or content"}), 400
+
+    new_comment = Comment(trip_id=trip_id, user_id=user_id, content=content)
+    db.session.add(new_comment)
+    db.session.commit()
+
+    user = User.query.get(user_id)
+
+    return jsonify({
+        "id": new_comment.id,
+        "user_id": new_comment.user_id,
+        "username": user.username if user else "Unknown",
+        "content": new_comment.content,
+        "created_at": new_comment.created_at.isoformat()
+    }), 201
+
+@app.route('/trips/<int:trip_id>/comments', methods=['GET'])
+def get_trip_comments(trip_id):
+    trip = Trip.query.get(trip_id)
+    if not trip:
+        return jsonify({'error': 'Trip not found'}), 404
+
+    comments = Comment.query.filter_by(trip_id=trip_id).order_by(Comment.created_at.asc()).all()
+    comment_data = []
+    for comment in comments:
+        user = User.query.get(comment.user_id)
+        comment_data.append({
+            'id': comment.id,
+            'user_id': comment.user_id,
+            'username': user.username if user else "Unknown",
+            'content': comment.content,
+            'created_at': comment.created_at.isoformat()
+        })
+    return jsonify(comment_data), 200
+
+@app.route('/comments/<int:comment_id>', methods=['DELETE'])
+def delete_comment(comment_id):
+    comment = Comment.query.get(comment_id)
+    if not comment:
+        return jsonify({'error': 'Comment not found'}), 404
+
+    db.session.delete(comment)
+    db.session.commit()
+    return jsonify({'message': 'Comment deleted'}), 200
+
+@app.route('/trip/<int:trip_id>', methods=['GET'])
+def get_trip(trip_id):
+    trip = Trip.query.get(trip_id)
+    if not trip:
+        return jsonify({'error': 'Trip not found'}), 404
+    return jsonify(trip.to_dict()), 200
 
 # ----------------------- Upload Access -----------------------
 @app.route('/uploads/<filename>')

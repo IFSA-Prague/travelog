@@ -47,7 +47,14 @@ const MyLog = () => {
     setTrips(prevTrips => prevTrips.filter(trip => trip.id !== tripId));
   };
 
-  const handleTripClick = (trip) => setSelectedTrip(trip);
+  const handleTripClick = async (trip) => {
+    try {
+      const res = await axios.get(`http://localhost:5050/trip/${trip.id}`);
+      setSelectedTrip(res.data);
+    } catch (err) {
+      console.error('Failed to fetch full trip with comments', err);
+    }
+  };
 
   return (
     <PageContainer>

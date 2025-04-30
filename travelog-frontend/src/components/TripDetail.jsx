@@ -1,10 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
+import { FaTrash, FaHeart, FaRegHeart } from 'react-icons/fa';
 
-const TripDetail = ({ trip, onClose, onDelete }) => {
+const TripDetail = ({ trip, onClose, onDelete, onCommentDelete, onCommentAdd }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isOwner = trip.user_id === currentUser.id;
+  const [likes, setLikes] = useState(trip.likes || []);
+
+  const handleToggleLike = async () => {
+    try {
+      const endpoint = likes.includes(currentUser.id)
+        ? `/trips/${trip.id}/unlike`
+        : `/trips/${trip.id}/like`;
+      await axios.post(`http://localhost:5050${endpoint}`, {
+        user_id: currentUser.id
+      });
+      setLikes((prev) =>
+        prev.includes(currentUser.id)
+          ? prev.filter((id) => id !== currentUser.id)
+          : [...prev, currentUser.id]
+      );
+    } catch (err) {
+      console.error('Error toggling like', err);
+    }
+  };
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -19,18 +43,71 @@ const TripDetail = ({ trip, onClose, onDelete }) => {
     }
   };
 
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await axios.delete(`http://localhost:5050/comments/${commentId}`);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      if (onCommentDelete) {
+        onCommentDelete(commentId, trip.id);
+      }
+    } catch (err) {
+      console.error("Failed to delete comment:", err);
+    }
+  };
+
+  const fetchComments = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5050/trips/${trip.id}/comments`);
+      setComments(res.data);
+    } catch (err) {
+      console.error('Error fetching comments:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchComments();
+  }, [trip.id]);
+
+  const submitComment = async () => {
+    if (!newComment.trim()) return;
+    try {
+      const res = await axios.post(`http://localhost:5050/trips/${trip.id}/comment`, {
+        user_id: currentUser.id,
+        content: newComment
+      });
+
+      // Optional: fetch comments again to update detail view
+      fetchComments();
+
+      // Tell HomePage to update the comment on the card
+      onCommentAdd?.(trip.id, {
+        id: res.data.id,
+        user_id: currentUser.id,
+        username: currentUser.username,
+        content: newComment,
+        created_at: new Date().toISOString()
+      });
+
+      setNewComment('');
+    } catch (err) {
+      console.error('Failed to submit comment:', err);
+    }
+  };
+
   return (
     <ModalOverlay onClick={onClose}>
       <ModalContent onClick={e => e.stopPropagation()}>
         <ModalHeader>
           <TripTitle>{trip.city}, {trip.country}</TripTitle>
           <ButtonGroup>
-            <DeleteButton 
-              onClick={() => setShowConfirm(true)}
-              disabled={isDeleting}
-            >
-              {isDeleting ? 'Deleting...' : 'Delete Trip'}
-            </DeleteButton>
+            {isOwner && (
+              <DeleteButton 
+                onClick={() => setShowConfirm(true)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Trip'}
+              </DeleteButton>
+            )}
             <CloseButton onClick={onClose}>&times;</CloseButton>
           </ButtonGroup>
         </ModalHeader>
@@ -97,6 +174,42 @@ const TripDetail = ({ trip, onClose, onDelete }) => {
               <SectionContent>{trip.other_notes}</SectionContent>
             </Section>
           )}
+          <Section>
+            <SectionTitle>Comments</SectionTitle>
+            <CommentsList>
+              {comments.map((comment) => (
+                <CommentItem key={comment.id}>
+                  <CommentText>
+                    <div><strong>{comment.username}:</strong> {comment.content}</div>
+                    <Timestamp>{new Date(comment.created_at).toLocaleString()}</Timestamp>
+                  </CommentText>
+                  {comment.user_id === currentUser.id && (
+                    <TrashButton onClick={() => handleDeleteComment(comment.id)} title="Delete">
+                      <FaTrash />
+                    </TrashButton>
+                  )}
+                </CommentItem>
+              ))}
+            </CommentsList>
+            <CommentInputRow>
+              <CommentInput
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Write a comment..."
+              />
+              <CommentButton onClick={submitComment}>Post</CommentButton>
+            </CommentInputRow>
+        </Section>
+        <Section>
+          <SectionTitle>
+            {likes.includes(currentUser.id) ? (
+              <FaHeart color="red" style={{ marginRight: '8px' }} />
+            ) : (
+              <FaRegHeart style={{ marginRight: '8px' }} />
+            )}
+            Likes ({likes.length})
+          </SectionTitle>
+        </Section>
         </Content>
       </ModalContent>
     </ModalOverlay>
@@ -279,5 +392,84 @@ const CancelButton = styled.button`
     background: #444;
   }
 `;
+
+const CommentInputRow = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const CommentInput = styled.input`
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+`;
+
+const CommentButton = styled.button`
+  background: #4263eb;
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+`;
+
+const CommentsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const CommentItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 14px;
+  color: #333;
+`;
+
+const CommentText = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const Timestamp = styled.span`
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+  padding-left: 2px;
+`;
+
+const TrashButton = styled.button`
+  background: none;
+  border: none;
+  color: #e74c3c;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 12px;
+
+  &:hover {
+    color: #c0392b;
+  }
+`;
+
+const LikeRow = styled.div`
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+`;
+
+const LikeButton = styled.button`
+  background: none;
+  border: none;
+  color: #e74c3c;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+`;
+
 
 export default TripDetail;
