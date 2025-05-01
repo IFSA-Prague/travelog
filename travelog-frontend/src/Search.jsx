@@ -2,7 +2,7 @@ import styled, { keyframes } from 'styled-components';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import defaultAvatar from './assets/user-no-set-photo.jpg';
+import defaultAvatar from './assets/default-avatar.jpg';
 import searchIllustration from './assets/search-illustration.svg';
 
 const fadeIn = keyframes`
