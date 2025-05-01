@@ -132,7 +132,7 @@ const HomePage = () => {
                 )}
                 <FeedInfo onClick={(e) => e.stopPropagation()}>
                   <FeedMeta>
-                    <ProfileLink to={`/profile/${trip.username}`}>
+                    <ProfileLink to={`/user/${trip.username}`}>
                       <Avatar
                         src={`${BACKEND_URL}/uploads/user_${trip.user_id}.png`}
                         onError={(e) => {
