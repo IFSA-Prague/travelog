@@ -1,8 +1,9 @@
 import styled, { keyframes } from 'styled-components';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import defaultAvatar from './assets/default-avatar.jpg';
+import searchIllustration from './assets/search-illustration.svg';
 
 const fadeIn = keyframes`
   from {
@@ -19,6 +20,13 @@ const Search = () => {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
+  const [displayedUsers, setDisplayedUsers] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const observer = useRef();
+  const USERS_PER_PAGE = 5;
+  const MAX_VISIBLE_HEIGHT = 6; // Number of users visible at once
   const [trips, setTrips] = useState([]);
   const [following, setFollowing] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -66,6 +74,12 @@ const Search = () => {
           (u) => u.id !== currentUser?.id && u.username.toLowerCase().includes(lower)
         );
         setFilteredUsers(filtered);
+        
+        const initialUsers = filtered.slice(0, USERS_PER_PAGE);
+        setDisplayedUsers(initialUsers);
+        
+        setHasMore(filtered.length > USERS_PER_PAGE);
+        setPage(1);
       } else {
         const searchTrips = async () => {
           try {
@@ -79,10 +93,46 @@ const Search = () => {
         searchTrips();
       }
     } else {
-      setFilteredUsers(users);
-      setTrips([]);
+      setFilteredUsers([]);
+      setDisplayedUsers([]);
+      setPage(1);
+      setHasMore(false);
     }
   }, [query, users, currentUser, searchType]);
+
+  const loadMoreUsers = useCallback(() => {
+    if (isLoading || !hasMore) return;
+    
+    setIsLoading(true);
+    setTimeout(() => {
+      const nextPage = page + 1;
+      const startIndex = (nextPage - 1) * USERS_PER_PAGE;
+      const endIndex = startIndex + USERS_PER_PAGE;
+      const nextUsers = filteredUsers.slice(startIndex, endIndex);
+      
+      setDisplayedUsers(prev => [...prev, ...nextUsers]);
+      setPage(nextPage);
+      setHasMore(endIndex < filteredUsers.length);
+      setIsLoading(false);
+    }, 300);
+  }, [page, filteredUsers, hasMore, isLoading]);
+
+  const lastUserElementRef = useCallback(node => {
+    if (isLoading) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreUsers();
+      }
+    }, {
+      root: null,
+      rootMargin: '20px',
+      threshold: 0.1
+    });
+    
+    if (node) observer.current.observe(node);
+  }, [hasMore, isLoading, loadMoreUsers]);
 
   const isFollowing = (userId) => following.some((u) => u.id === userId);
   const toggleFollow = async (targetId) => {
@@ -141,32 +191,48 @@ const Search = () => {
         
         {searchType === 'users' ? (
           <>
+            {!query && (
+              <PlaceholderContainer>
+                <PlaceholderImage src={searchIllustration} alt="Search for users" />
+                <PlaceholderText>Start typing to search for users</PlaceholderText>
+              </PlaceholderContainer>
+            )}
             {query && filteredUsers.length === 0 && (
               <NoResults>No users found.</NoResults>
             )}
-            {filteredUsers.length > 0 && (
-              <UserList>
-                {filteredUsers.map((user) => (
-                  <UserCard key={user.id}>
-                    <UserInfo onClick={() => handleUserClick(user.username)} style={{ cursor: 'pointer' }}>
-                      <Avatar
-                        src={getAvatarUrl(user.id)}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = defaultAvatar;
-                        }}
-                      />
-                      <Username>{user.username}</Username>
-                    </UserInfo>
-                    <FollowButton
-                      $following={isFollowing(user.id)}
-                      onClick={() => toggleFollow(user.id)}
+            {query && displayedUsers.length > 0 && (
+              <ScrollContainer>
+                <UserList>
+                  {displayedUsers.map((user, index) => (
+                    <UserCard 
+                      key={user.id}
+                      ref={index === displayedUsers.length - 1 ? lastUserElementRef : null}
                     >
-                      {isFollowing(user.id) ? 'Unfollow' : 'Follow'}
-                    </FollowButton>
-                  </UserCard>
-                ))}
-              </UserList>
+                      <UserInfo onClick={() => handleUserClick(user.username)} style={{ cursor: 'pointer' }}>
+                        <Avatar
+                          src={getAvatarUrl(user.id)}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = defaultAvatar;
+                          }}
+                        />
+                        <Username>{user.username}</Username>
+                      </UserInfo>
+                      <FollowButton
+                        $following={isFollowing(user.id)}
+                        onClick={() => toggleFollow(user.id)}
+                      >
+                        {isFollowing(user.id) ? 'Unfollow' : 'Follow'}
+                      </FollowButton>
+                    </UserCard>
+                  ))}
+                  {hasMore && (
+                    <LoadingIndicator>
+                      {isLoading ? 'Loading more users...' : 'Scroll to load more'}
+                    </LoadingIndicator>
+                  )}
+                </UserList>
+              </ScrollContainer>
             )}
           </>
         ) : (
@@ -303,10 +369,40 @@ const SearchInput = styled.input`
     color: #b4b4b4;
   }
 `;
+const ScrollContainer = styled.div`
+  max-height: ${props => props.theme.userCardHeight || '440px'}; // Approximately 6 users (each 73px) + some padding
+  overflow-y: auto;
+  margin: 0 -32px;  // Negative margin to extend to card edges
+  padding: 0 32px;  // Padding to maintain content alignment
+  
+  /* Scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c5c5c5;
+    border-radius: 4px;
+    
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
+
+  /* Firefox scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: #c5c5c5 #f1f1f1;
+`;
 const UserList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 4px 0;  // Small padding to prevent edge clipping
 `;
 const UserCard = styled.div`
   display: flex;
@@ -316,6 +412,8 @@ const UserCard = styled.div`
   border: 1px solid #eee;
   border-radius: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  background: white;
+  height: 73px; // Fixed height for consistent sizing
 `;
 const UserInfo = styled.div`
   display: flex;
@@ -558,4 +656,36 @@ const DetailText = styled.p`
   color: #333;
   line-height: 1.5;
   white-space: pre-wrap;
+`;
+
+const PlaceholderContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+`;
+
+const PlaceholderImage = styled.img`
+  width: 200px;
+  height: 200px;
+  margin-bottom: 20px;
+  opacity: 0.8;
+`;
+
+const PlaceholderText = styled.p`
+  font-size: 18px;
+  color: #666;
+  margin-top: 16px;
+`;
+
+const LoadingIndicator = styled.div`
+  text-align: center;
+  color: #666;
+  padding: 16px;
+  font-size: 14px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  margin: 8px 0;
 `;
