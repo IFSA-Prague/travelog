@@ -158,12 +158,18 @@ const Search = () => {
                       />
                       <Username>{user.username}</Username>
                     </UserInfo>
-                    <FollowButton
-                      $following={isFollowing(user.id)}
-                      onClick={() => toggleFollow(user.id)}
-                    >
-                      {isFollowing(user.id) ? 'Unfollow' : 'Follow'}
-                    </FollowButton>
+                    
+                    
+                    {user.id !== currentUser.id && (
+                      <FollowButton
+                        $following={isFollowing(user.id)}
+                        onClick={() => toggleFollow(user.id)}
+                        >
+                        {isFollowing(user.id) ? 'Unfollow' : 'Follow'}
+                      </FollowButton>
+                    )}
+
+
                   </UserCard>
                 ))}
               </UserList>
