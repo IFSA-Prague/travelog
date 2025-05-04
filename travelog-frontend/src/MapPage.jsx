@@ -27,6 +27,14 @@ const greenIcon = new L.Icon({
 
 const MapPage = () => {
   const [tripMarkers, setTripMarkers] = useState([]);
+  useEffect(() => {
+    // This prevents "Map container is already initialized" errors
+    const mapContainer = document.querySelector('.leaflet-container');
+    if (mapContainer) {
+      mapContainer._leaflet_id = null;
+    }
+  }, []);
+
 
   useEffect(() => {
     document.title = 'Travelog Map';
