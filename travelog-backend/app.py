@@ -14,7 +14,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://natalieramirez:your_password@localhost/travelog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://ansh@localhost/travelog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'your_jwt_secret_key'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
@@ -31,13 +31,22 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.Text, nullable=False)
-    followers = db.relationship(
+    following = db.relationship(
         'User',
         secondary='follows',
         primaryjoin='User.id==Follow.followed_id',
         secondaryjoin='User.id==Follow.follower_id',
-        backref='following'
+        backref=db.backref('followers', lazy='dynamic'),
+        lazy='dynamic'
     )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'avatar_url': f'/uploads/user_{self.id}.png'
+        }
 
 class Follow(db.Model):
     __tablename__ = 'follows'
@@ -59,11 +68,37 @@ class Comment(db.Model):
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    user = db.relationship('User', backref=db.backref('comments', lazy=True))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.user.username if self.user else None,
+            'content': self.content,
+            'created_at': str(self.created_at)
+        }
+
+class City(db.Model):
+    __tablename__ = 'cities'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    country = db.Column(db.String(120), nullable=False)
+    trips = db.relationship('Trip', backref='city_ref', lazy=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'country': self.country,
+            'trip_count': len(self.trips)
+        }
 
 class Trip(db.Model):
     __tablename__ = 'trips'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    city_id = db.Column(db.Integer, db.ForeignKey('cities.id'), nullable=True)
     city = db.Column(db.String(120), nullable=False)
     country = db.Column(db.String(120), nullable=False)
     start_date = db.Column(db.Date, nullable=False)
@@ -73,7 +108,7 @@ class Trip(db.Model):
     favorite_attractions = db.Column(db.Text, nullable=True)
     other_notes = db.Column(db.Text, nullable=True)
     photos = db.Column(db.JSON, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # NEW FIELD
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref=db.backref('trips', lazy=True))
 
@@ -92,6 +127,7 @@ class Trip(db.Model):
             'username': self.user.username if self.user else None,
             'city': self.city,
             'country': self.country,
+            'city_id': self.city_id,
             'start_date': str(self.start_date),
             'end_date': str(self.end_date),
             'accommodation': self.accommodation,
@@ -99,14 +135,9 @@ class Trip(db.Model):
             'favorite_attractions': self.favorite_attractions,
             'other_notes': self.other_notes,
             'photos': photos,
-            'likes': [like.user_id for like in likes],  # 🔥 Add this line
-            'comments': [{
-                'id': c.id,
-                'user_id': c.user_id,
-                'username': User.query.get(c.user_id).username,
-                'content': c.content,
-                'created_at': c.created_at.isoformat()
-            } for c in comments]
+            'likes': len(likes),
+            'comments': [comment.to_dict() for comment in comments],
+            'created_at': str(self.created_at)
         }
 
 # ----------------------- User Routes -----------------------
@@ -224,6 +255,18 @@ def add_trip():
         form = request.form
         files = request.files.getlist('media')
 
+        # Handle city
+        city_name = form['city'].strip()
+        country = form['country'].strip()
+        
+        # Check if city exists
+        city = City.query.filter_by(name=city_name, country=country).first()
+        if not city:
+            # Create new city if it doesn't exist
+            city = City(name=city_name, country=country)
+            db.session.add(city)
+            db.session.flush()  # Get the city ID without committing
+
         photo_metadata = []
         for file in files:
             if file.filename:
@@ -238,8 +281,9 @@ def add_trip():
 
         new_trip = Trip(
             user_id=form['user_id'],
-            city=form['city'],
-            country=form['country'],
+            city_id=city.id,  # Add city_id
+            city=city_name,  # Keep for backward compatibility
+            country=country,  # Keep for backward compatibility
             start_date=datetime.strptime(form['startDate'], '%Y-%m-%d').date(),
             end_date=datetime.strptime(form['endDate'], '%Y-%m-%d').date(),
             accommodation=form.get('accommodation'),
@@ -284,7 +328,9 @@ def get_following_feed(user_id):
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
+    # Get user's own trips and trips from users they follow
     following_ids = [u.id for u in user.following]
+    following_ids.append(user_id)  # Include user's own ID
 
     trips = Trip.query.filter(Trip.user_id.in_(following_ids)).order_by(Trip.created_at.desc()).all()
 
@@ -379,6 +425,68 @@ def uploaded_file(filename):
 @app.route('/ping')
 def ping():
     return jsonify({"message": "pong!"})
+
+@app.route('/cities', methods=['GET'])
+def get_cities():
+    try:
+        cities = City.query.all()
+        return jsonify([city.to_dict() for city in cities]), 200
+    except Exception as e:
+        print("Error fetching cities:", e)
+        return jsonify({"error": "Failed to fetch cities"}), 500
+
+@app.route('/cities/search', methods=['GET'])
+def search_cities():
+    try:
+        query = request.args.get('q', '').lower()
+        if not query:
+            return jsonify([]), 200
+
+        cities = City.query.filter(
+            db.or_(
+                db.func.lower(City.name).contains(query),
+                db.func.lower(City.country).contains(query)
+            )
+        ).all()
+        
+        return jsonify([city.to_dict() for city in cities]), 200
+    except Exception as e:
+        print("Error searching cities:", e)
+        return jsonify({"error": "Failed to search cities"}), 500
+
+@app.route('/cities/<int:city_id>', methods=['GET'])
+def get_city(city_id):
+    try:
+        city = City.query.get(city_id)
+        if not city:
+            return jsonify({"error": "City not found"}), 404
+        return jsonify(city.to_dict()), 200
+    except Exception as e:
+        print("Error fetching city:", e)
+        return jsonify({"error": "Failed to fetch city"}), 500
+
+@app.route('/cities/<int:city_id>/trips', methods=['GET'])
+def get_city_trips(city_id):
+    try:
+        trips = Trip.query.filter_by(city_id=city_id).order_by(Trip.start_date.desc()).all()
+        return jsonify([trip.to_dict() for trip in trips]), 200
+    except Exception as e:
+        print("Error fetching city trips:", e)
+        return jsonify({"error": "Failed to fetch city trips"}), 500
+
+@app.route('/cities/<int:city_id>/users', methods=['GET'])
+def get_city_users(city_id):
+    try:
+        city = City.query.get(city_id)
+        if not city:
+            return jsonify({"error": "City not found"}), 404
+            
+        # Get unique users who have trips in this city
+        users = User.query.join(Trip).filter(Trip.city_id == city_id).distinct().all()
+        return jsonify([user.to_dict() for user in users]), 200
+    except Exception as e:
+        print("Error fetching city users:", e)
+        return jsonify({"error": "Failed to fetch city users"}), 500
 
 # ----------------------- DB Init -----------------------
 RESET_DB_ON_START = False

@@ -10,6 +10,7 @@ import MyLog from "./MyLog";
 import MapPage from "./MapPage";
 import Profile from "./Profile";
 import UserProfile from './UserProfile';
+import CityDetail from './CityDetail';
 
 const AppRouter = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("user"));  
@@ -42,14 +43,17 @@ const AppRouter = () => {
         <Route path="/map" element={<MapPage />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/user/:username" element={<UserProfile />} />
+        <Route path="/city/:cityId" element={<CityDetail />} />
       </Routes>
     </>
   );  
 };
+
 // This wrapper is needed to use `useLocation` outside of Routes
 const RouterWrapper = () => (
   <Router>
     <AppRouter />
   </Router>
 );
+
 export default RouterWrapper;

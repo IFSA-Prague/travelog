@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import defaultAvatar from './assets/default-avatar.jpg';
 import searchIllustration from './assets/search-illustration.svg';
+import { FaSearch, FaUser, FaMapMarkerAlt } from 'react-icons/fa';
 
 const fadeIn = keyframes`
   from {
@@ -19,6 +20,7 @@ const fadeIn = keyframes`
 const Search = () => {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState([]);
+  const [cities, setCities] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [displayedUsers, setDisplayedUsers] = useState([]);
   const [page, setPage] = useState(1);
@@ -74,31 +76,29 @@ const Search = () => {
           (u) => u.id !== currentUser?.id && u.username.toLowerCase().includes(lower)
         );
         setFilteredUsers(filtered);
-        
-        const initialUsers = filtered.slice(0, USERS_PER_PAGE);
-        setDisplayedUsers(initialUsers);
-        
+        setDisplayedUsers(filtered.slice(0, USERS_PER_PAGE));
         setHasMore(filtered.length > USERS_PER_PAGE);
         setPage(1);
-      } else {
-        const searchTrips = async () => {
+      } else if (searchType === 'cities') {
+        const searchCities = async () => {
           try {
-            const response = await axios.get(`/trips/search/${query}`);
-            setTrips(response.data);
+            const response = await axios.get(`/cities/search?q=${query}`);
+            setCities(response.data);
           } catch (error) {
-            console.error("Error searching trips:", error);
-            setTrips([]);
+            console.error("Error searching cities:", error);
+            setCities([]);
           }
         };
-        searchTrips();
+        searchCities();
       }
     } else {
       setFilteredUsers([]);
       setDisplayedUsers([]);
+      setCities([]);
       setPage(1);
       setHasMore(false);
     }
-  }, [query, users, currentUser, searchType]);
+  }, [query, searchType, users, currentUser]);
 
   const loadMoreUsers = useCallback(() => {
     if (isLoading || !hasMore) return;
@@ -157,6 +157,10 @@ const Search = () => {
       return updated;
     });
     navigate(`/user/${username}`);
+  };
+
+  const handleCityClick = (cityId) => {
+    navigate(`/city/${cityId}`);
   };
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -220,7 +224,10 @@ const Search = () => {
                       </UserInfo>
                       <FollowButton
                         $following={isFollowing(user.id)}
-                        onClick={() => toggleFollow(user.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFollow(user.id);
+                        }}
                       >
                         {isFollowing(user.id) ? 'Unfollow' : 'Follow'}
                       </FollowButton>
@@ -237,39 +244,24 @@ const Search = () => {
           </>
         ) : (
           <>
-            {query && trips.length === 0 && (
-              <NoResults>No trips found in this city.</NoResults>
+            {query && cities.length === 0 && (
+              <NoResults>No cities found.</NoResults>
             )}
-            {trips.length > 0 && (
-              <TripsList>
-                {trips.map((trip) => (
-                  <TripCard key={trip.id} onClick={() => handleTripClick(trip)}>
-                    <TripImage $hasImage={trip.photos && trip.photos.length > 0}>
-                      {trip.photos && trip.photos.length > 0 ? (
-                        <img src={trip.photos[0].url} alt={`${trip.city} trip`} />
-                      ) : (
-                        <MapIcon>📍</MapIcon>
-                      )}
-                    </TripImage>
-                    <TripInfo>
-                      <TripLocation>
-                        <City>{trip.city}</City>
-                        <Country>{trip.country}</Country>
-                      </TripLocation>
-                      <TripUser onClick={(e) => {
-                        e.stopPropagation();
-                        handleUserClick(trip.username);
-                      }}>
-                        <UserIcon>👤</UserIcon>
-                        <Username>{trip.username}</Username>
-                      </TripUser>
-                      <TripDates>
-                        {new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}
-                      </TripDates>
-                    </TripInfo>
-                  </TripCard>
+            {cities.length > 0 && (
+              <CityResults>
+                {cities.map((city) => (
+                  <CityCard key={city.id} onClick={() => handleCityClick(city.id)}>
+                    <CityIcon><FaMapMarkerAlt /></CityIcon>
+                    <CityInfo>
+                      <CityName>{city.name}</CityName>
+                      <CityCountry>{city.country}</CityCountry>
+                      <CityStats>
+                        <Stat>{city.trip_count} trips</Stat>
+                      </CityStats>
+                    </CityInfo>
+                  </CityCard>
                 ))}
-              </TripsList>
+              </CityResults>
             )}
             {selectedTrip && (
               <TripModal onClose={() => setSelectedTrip(null)}>
@@ -482,91 +474,93 @@ const SearchTypeButton = styled.button`
   }
 `;
 
-const TripsList = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-`;
-
-const TripCard = styled.div`
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
-
-  &:hover {
-    transform: translateY(-4px);
-  }
-`;
-
-const TripImage = styled.div`
-  position: relative;
-  width: 100%;
-  height: 150px;
-  background: ${props => props.$hasImage ? 'none' : '#f0f0f0'};
+const SearchTabs = styled.div`
   display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
+  gap: 10px;
+  margin-bottom: 20px;
 `;
 
-const MapIcon = styled.div`
-  font-size: 32px;
-  color: #4263eb;
-  opacity: 0.8;
-`;
-
-const TripInfo = styled.div`
-  padding: 16px;
-`;
-
-const TripLocation = styled.div`
-  margin-bottom: 8px;
-`;
-
-const City = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0;
-`;
-
-const Country = styled.p`
-  font-size: 14px;
-  color: #666;
-  margin: 4px 0 0 0;
-`;
-
-const TripDates = styled.p`
-  font-size: 14px;
-  color: #666;
-  margin: 8px 0 0 0;
-`;
-
-const TripUser = styled.div`
+const Tab = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 8px 0;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: ${props => props.$active ? '#3b5bdb' : '#f5f5f5'};
+  color: ${props => props.$active ? 'white' : '#666'};
   cursor: pointer;
-  color: #3b5bdb;
+  font-size: 14px;
   font-weight: 500;
+  transition: all 0.2s;
 
   &:hover {
-    text-decoration: underline;
+    background: ${props => props.$active ? '#2f4ac0' : '#e0e0e0'};
   }
 `;
 
-const UserIcon = styled.span`
+const CityResults = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+`;
+
+const CityCard = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+`;
+
+const CityIcon = styled.div`
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f4ff;
+  border-radius: 50%;
+  margin-right: 15px;
+  color: #3b5bdb;
+`;
+
+const CityInfo = styled.div`
+  flex: 1;
+`;
+
+const CityName = styled.h3`
+  margin: 0;
   font-size: 16px;
+  color: #1a1a1a;
+`;
+
+const CityCountry = styled.p`
+  margin: 4px 0;
+  font-size: 14px;
+  color: #666;
+`;
+
+const CityStats = styled.div`
+  display: flex;
+  gap: 15px;
+  margin-top: 8px;
+`;
+
+const Stat = styled.span`
+  font-size: 13px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 `;
 
 const TripModal = styled.div`
