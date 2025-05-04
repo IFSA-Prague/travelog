@@ -2,9 +2,10 @@ import styled, { keyframes } from 'styled-components';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import defaultAvatar from './assets/default-avatar.jpg';
 import searchIllustration from './assets/search-illustration.svg';
 import { FaSearch, FaUser, FaMapMarkerAlt } from 'react-icons/fa';
+
+const DEFAULT_AVATAR_URL = '/default-avatar.jpg';
 
 const fadeIn = keyframes`
   from {
@@ -16,6 +17,8 @@ const fadeIn = keyframes`
     transform: translateY(0);
   }
 `;
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const Search = () => {
   const [query, setQuery] = useState('');
@@ -54,8 +57,8 @@ const Search = () => {
     const fetchUsers = async () => {
       try {
         const [usersRes, followingRes] = await Promise.all([
-          axios.get('/users'),
-          axios.get(`/users/${currentUser.id}/following`)
+          axios.get(`${BACKEND_URL}/users`),
+          axios.get(`${BACKEND_URL}/users/${currentUser.id}/following`)
         ]);
         const validUsers = Array.isArray(usersRes.data) ? usersRes.data : [];
         setUsers(validUsers);
@@ -136,13 +139,33 @@ const Search = () => {
 
   const isFollowing = (userId) => following.some((u) => u.id === userId);
   const toggleFollow = async (targetId) => {
+    if (!currentUser) {
+      console.error("No current user found");
+      return;
+    }
+    
     try {
       const action = isFollowing(targetId) ? 'unfollow' : 'follow';
-      await axios.post(`/users/${currentUser.id}/${action}`, { target_user_id: targetId });
-      const updated = await axios.get(`/users/${currentUser.id}/following`);
+      await axios.post(`${BACKEND_URL}/users/${currentUser.id}/${action}`, { target_user_id: targetId });
+      
+      // Optimistically update the UI
+      setFollowing(prev => {
+        if (action === 'follow') {
+          const targetUser = users.find(u => u.id === targetId);
+          return [...prev, targetUser];
+        } else {
+          return prev.filter(u => u.id !== targetId);
+        }
+      });
+
+      // Then fetch the actual updated following list
+      const updated = await axios.get(`${BACKEND_URL}/users/${currentUser.id}/following`);
       setFollowing(Array.isArray(updated.data) ? updated.data : []);
     } catch (err) {
       console.error("Failed to follow/unfollow", err);
+      // Revert the optimistic update if the request failed
+      const updated = await axios.get(`${BACKEND_URL}/users/${currentUser.id}/following`);
+      setFollowing(Array.isArray(updated.data) ? updated.data : []);
     }
   };
 
@@ -163,7 +186,6 @@ const Search = () => {
     navigate(`/city/${cityId}`);
   };
 
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const getAvatarUrl = (userId) => `${BACKEND_URL}/uploads/user_${userId}.png`;
 
   return (
@@ -217,7 +239,7 @@ const Search = () => {
                           src={getAvatarUrl(user.id)}
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = defaultAvatar;
+                            e.target.src = DEFAULT_AVATAR_URL;
                           }}
                         />
                         <Username>{user.username}</Username>
@@ -335,6 +357,7 @@ const Card = styled.div`
   max-width: 700px;
   width: 100%;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  margin-top: 20px;
 `;
 const Heading = styled.h1`
   font-size: 28px;
@@ -342,6 +365,7 @@ const Heading = styled.h1`
   color: #1a1a1a;
   margin-bottom: 24px;
   text-align: center;
+  padding-top: 20px;
 `;
 const SearchRow = styled.div`
   display: flex;
@@ -350,6 +374,7 @@ const SearchRow = styled.div`
   border-radius: 999px;
   padding: 12px 20px;
   margin-bottom: 24px;
+  margin-top: 20px;
 `;
 const SearchInput = styled.input`
   flex: 1;
@@ -504,6 +529,33 @@ const CityResults = styled.div`
   flex-direction: column;
   gap: 10px;
   width: 100%;
+  max-height: 440px;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-top: 20px;
+
+  /* Scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c5c5c5;
+    border-radius: 4px;
+    
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
+
+  /* Firefox scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: #c5c5c5 #f1f1f1;
 `;
 
 const CityCard = styled.div`
@@ -515,6 +567,7 @@ const CityCard = styled.div`
   cursor: pointer;
   transition: transform 0.2s;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  min-height: 80px;  // Add minimum height
 
   &:hover {
     transform: translateY(-2px);
@@ -535,18 +588,23 @@ const CityIcon = styled.div`
 
 const CityInfo = styled.div`
   flex: 1;
+  overflow: hidden;  // Prevent text overflow
 `;
 
 const CityName = styled.h3`
   margin: 0;
   font-size: 16px;
   color: #1a1a1a;
+  white-space: normal;  // Allow text to wrap
+  word-wrap: break-word;  // Break long words if necessary
 `;
 
 const CityCountry = styled.p`
   margin: 4px 0;
   font-size: 14px;
   color: #666;
+  white-space: normal;  // Allow text to wrap
+  word-wrap: break-word;  // Break long words if necessary
 `;
 
 const CityStats = styled.div`

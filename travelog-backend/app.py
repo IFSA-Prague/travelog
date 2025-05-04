@@ -34,8 +34,8 @@ class User(db.Model):
     following = db.relationship(
         'User',
         secondary='follows',
-        primaryjoin='User.id==Follow.followed_id',
-        secondaryjoin='User.id==Follow.follower_id',
+        primaryjoin='User.id==Follow.follower_id',
+        secondaryjoin='User.id==Follow.followed_id',
         backref=db.backref('followers', lazy='dynamic'),
         lazy='dynamic'
     )
@@ -328,10 +328,8 @@ def get_following_feed(user_id):
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
-    # Get user's own trips and trips from users they follow
+    # Get trips from users they follow (excluding their own trips)
     following_ids = [u.id for u in user.following]
-    following_ids.append(user_id)  # Include user's own ID
-
     trips = Trip.query.filter(Trip.user_id.in_(following_ids)).order_by(Trip.created_at.desc()).all()
 
     return jsonify([trip.to_dict() for trip in trips])
