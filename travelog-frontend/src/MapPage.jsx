@@ -3,6 +3,9 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import styled from 'styled-components';
+import TripDetail from './TripDetail'; // Adjust path if needed
+// import { useNavigate } from 'react-router-dom';
+
 
 
 // Custom blue and green markers
@@ -26,7 +29,7 @@ const greenIcon = new L.Icon({
 
 
 const MapPage = () => {
-  const [tripMarkers, setTripMarkers] = useState([]);
+
   useEffect(() => {
     // This prevents "Map container is already initialized" errors
     const mapContainer = document.querySelector('.leaflet-container');
@@ -34,6 +37,13 @@ const MapPage = () => {
       mapContainer._leaflet_id = null;
     }
   }, []);
+
+  // const navigate = useNavigate();
+  const [selectedTrip, setSelectedTrip] = useState(null);
+
+
+
+  const [tripMarkers, setTripMarkers] = useState([]);
 
 
   useEffect(() => {
@@ -83,7 +93,14 @@ const MapPage = () => {
           popup: (
             <PopupContent>
               <strong>{trip.city}, {trip.country}</strong><br />
-              by <a href={`/user/${trip.username}`}>{trip.username}</a>
+              <UserRow>
+              <span>by <a href={`/user/${trip.username}`}>{trip.username}</a></span>
+              <ViewPostButton onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedTrip(trip);
+              }}>View Post</ViewPostButton>
+              </UserRow>
             </PopupContent>
           )
         });
@@ -106,9 +123,15 @@ const MapPage = () => {
     return null;
   };
 
+  
+  
+
   return (
     <MapWrapper>
+      {tripMarkers.length > 0 && (
+
       <MapContainer
+        // key={Date.now()}
         center={[20, 0]} // world view
         zoom={2}
         style={{ height: '100%', width: '100%' }}
@@ -123,6 +146,10 @@ const MapPage = () => {
           </Marker>
         ))}
       </MapContainer>
+      )}
+      {selectedTrip && (
+      <TripDetail trip={selectedTrip} onClose={() => setSelectedTrip(null)} />
+    )}
       </MapWrapper>
    
   );
@@ -157,3 +184,30 @@ const MapWrapper = styled.div`
   margin-top: 64px;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 `;
+
+const UserRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 4px;
+`;
+
+
+
+const ViewPostButton = styled.button`
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background-color: #4263eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: #2f4cd0;
+  }
+`;
+
