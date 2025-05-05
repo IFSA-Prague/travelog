@@ -59,62 +59,68 @@ const MapPage = () => {
   const fetchTrips = async () => {
     const user = JSON.parse(localStorage.getItem('user'));
     const userId = user?.id;
-
+  
     if (!userId) return;
-
-    const myTripsRes = await fetch(`http://localhost:5050/trips/${userId}`);
-    const feedRes = await fetch(`http://localhost:5050/feed/${userId}`);
-    const myTrips = await myTripsRes.json();
-    const feedTrips = await feedRes.json();
-
-    const markers = [];
-
-    // Geocode and add your own trips
-    for (const trip of myTrips) {
-      const coords = await geocodeCity(trip.city);
-      if (coords) {
-        markers.push({
-          position: coords,
-          icon: blueIcon,
-          popup: (
-            <PopupContent>
-              <strong>{trip.city}, {trip.country}</strong><br />
-              by <a href={`/user/${trip.username}`}>{'You'}</a>
-            </PopupContent>
-            
-          )
-          
-        });
+  
+    try {
+      const [myTripsRes, feedRes] = await Promise.all([
+        fetch(`http://localhost:5050/trips/${userId}`),
+        fetch(`http://localhost:5050/feed/${userId}`)
+      ]);
+  
+      const myTrips = myTripsRes.ok ? await myTripsRes.json() : [];
+      const feedTrips = feedRes.ok ? await feedRes.json() : [];
+  
+      const markers = [];
+  
+      // Geocode and add your own trips
+      for (const trip of myTrips) {
+        const coords = await geocodeCity(trip.city);
+        if (coords) {
+          markers.push({
+            position: coords,
+            icon: blueIcon,
+            popup: (
+              <PopupContent>
+                <strong>{trip.city}, {trip.country}</strong><br />
+                by <a href={`/user/${trip.username}`}>You</a>
+              </PopupContent>
+            )
+          });
+        }
       }
-    }
-
-    // Geocode and add followed users' trips
-    for (const trip of feedTrips) {
-      const coords = await geocodeCity(trip.city);
-      if (coords) {
-        markers.push({
-          position: coords,
-          icon: greenIcon,
-          popup: (
-            <PopupContent>
-              <strong>{trip.city}, {trip.country}</strong><br />
-              <UserRow>
-              <span>by <a href={`/user/${trip.username}`}>{trip.username}</a></span>
-              <ViewPostButton onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setSelectedTrip(trip);
-              }}>View Post</ViewPostButton>
-              </UserRow>
-            </PopupContent>
-          )
-        });
+  
+      // Geocode and add followed users' trips
+      for (const trip of feedTrips) {
+        const coords = await geocodeCity(trip.city);
+        if (coords) {
+          markers.push({
+            position: coords,
+            icon: greenIcon,
+            popup: (
+              <PopupContent>
+                <strong>{trip.city}, {trip.country}</strong><br />
+                <UserRow>
+                  <span>by <a href={`/user/${trip.username}`}>{trip.username}</a></span>
+                  <ViewPostButton onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedTrip(trip);
+                  }}>View Post</ViewPostButton>
+                </UserRow>
+              </PopupContent>
+            )
+          });
+        }
       }
+  
+      setTripMarkers(markers);
+      setMapReady(true);  // optional if you're conditionally rendering
+    } catch (err) {
+      console.error('Error fetching trips:', err);
     }
-
-    setTripMarkers(markers);
-    setMapReady(true);
   };
+  
 
   const geocodeCity = async (city) => {
     try {
