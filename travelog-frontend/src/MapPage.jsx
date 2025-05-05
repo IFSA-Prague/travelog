@@ -41,9 +41,14 @@ const MapPage = () => {
   // const navigate = useNavigate();
   const [selectedTrip, setSelectedTrip] = useState(null);
 
+  
+
 
 
   const [tripMarkers, setTripMarkers] = useState([]);
+
+
+  const [mapReady, setMapReady] = useState(false);
 
 
   useEffect(() => {
@@ -108,6 +113,7 @@ const MapPage = () => {
     }
 
     setTripMarkers(markers);
+    setMapReady(true);
   };
 
   const geocodeCity = async (city) => {
@@ -127,30 +133,31 @@ const MapPage = () => {
   
 
   return (
+    
     <MapWrapper>
-      {tripMarkers.length > 0 && (
+  {mapReady && (
+    <MapContainer
+      center={[20, 0]}
+      zoom={2}
+      style={{ height: '100%', width: '100%' }}
+    >
+      <TileLayer
+        attribution='&copy; OpenStreetMap contributors'
+        url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      />
+      {tripMarkers.map((marker, idx) => (
+        <Marker key={idx} position={marker.position} icon={marker.icon}>
+          <Popup>{marker.popup}</Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  )}
 
-      <MapContainer
-        // key={Date.now()}
-        center={[20, 0]} // world view
-        zoom={2}
-        style={{ height: '100%', width: '100%' }}
-      >
-        <TileLayer
-          attribution='&copy; OpenStreetMap contributors'
-          url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-        />
-        {tripMarkers.map((marker, idx) => (
-          <Marker key={idx} position={marker.position} icon={marker.icon}>
-            <Popup>{marker.popup}</Popup>
-          </Marker>
-        ))}
-      </MapContainer>
-      )}
-      {selectedTrip && (
-      <TripDetail trip={selectedTrip} onClose={() => setSelectedTrip(null)} />
-    )}
-      </MapWrapper>
+  {selectedTrip && (
+    <TripDetail trip={selectedTrip} onClose={() => setSelectedTrip(null)} />
+  )}
+</MapWrapper>
+
    
   );
 };
