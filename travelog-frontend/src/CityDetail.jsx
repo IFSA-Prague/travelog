@@ -259,7 +259,6 @@ const UsersGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));  // was 150px
   gap: 1rem;
-`;
 
 const UserCard = styled.div`
   display: flex;

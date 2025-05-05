@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
@@ -23,40 +23,102 @@ const HomePage = () => {
   const [feed, setFeed] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [commentMap, setCommentMap] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isVisible, setIsVisible] = useState(true);
   const navigate = useNavigate();
+  const feedCache = useRef({});
+  const fetchTimeout = useRef(null);
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
   const username = user?.username;
   const userId = user?.id;
 
+  const fetchFeed = useCallback(async () => {
+    if (!userId || !isVisible) return;
+    
+    // Check cache first
+    if (feedCache.current[userId]) {
+      setFeed(feedCache.current[userId]);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const res = await axios.get(`${BACKEND_URL}/feed/${userId}`);
+      const feedData = res.data;
+      setFeed(feedData);
+      // Cache the feed data
+      feedCache.current[userId] = feedData;
+    } catch (err) {
+      console.error('Failed to fetch feed', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId, isVisible]);
+
+  // Debounced feed fetch
+  const debouncedFetchFeed = useCallback(() => {
+    if (fetchTimeout.current) {
+      clearTimeout(fetchTimeout.current);
+    }
+    fetchTimeout.current = setTimeout(fetchFeed, 500);
+  }, [fetchFeed]);
+
   useEffect(() => {
-    const fetchFeed = async () => {
-      if (!userId) return;
-      try {
-        const res = await axios.get(`${BACKEND_URL}/feed/${userId}`);
-        setFeed(res.data);
-      } catch (err) {
-        console.error('Failed to fetch feed', err);
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    debouncedFetchFeed();
+  }, [user, navigate, debouncedFetchFeed]);
+
+  // Handle visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsVisible(document.visibilityState === 'visible');
+      if (document.visibilityState === 'visible') {
+        debouncedFetchFeed();
       }
     };
-    fetchFeed();
-  }, [userId]);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (fetchTimeout.current) {
+        clearTimeout(fetchTimeout.current);
+      }
+    };
+  }, [debouncedFetchFeed]);
+
+  // Memoize the feed data to prevent unnecessary re-renders
+  const memoizedFeed = useMemo(() => feed, [feed]);
+
+  const handleTripSelect = useCallback((trip) => {
+    setSelectedTrip(trip);
+  }, []);
 
   const toggleLike = async (tripId) => {
     try {
-      await axios.post(`${BACKEND_URL}/trips/${tripId}/like`, { user_id: userId });
-      setFeed((prev) =>
-        prev.map((t) =>
-          t.id === tripId
-            ? {
-                ...t,
-                likes: t.likes.includes(userId)
-                  ? t.likes.filter((id) => id !== userId)
-                  : [...t.likes, userId]
-              }
-            : t
-        )
+      const trip = feed.find(t => t.id === tripId);
+      const isLiked = trip.likes > 0;
+      
+      // Call the appropriate endpoint based on current like status
+      const endpoint = isLiked ? 'unlike' : 'like';
+      await axios.post(`${BACKEND_URL}/trips/${tripId}/${endpoint}`, { user_id: userId });
+      
+      const updatedFeed = feed.map((t) =>
+        t.id === tripId
+          ? {
+              ...t,
+              likes: isLiked ? Math.max(0, t.likes - 1) : t.likes + 1
+            }
+          : t
       );
+      setFeed(updatedFeed);
+      // Update the cache with the new feed data
+      feedCache.current[userId] = updatedFeed;
     } catch (err) {
       console.error('Failed to like/unlike', err);
     }
@@ -72,24 +134,25 @@ const HomePage = () => {
         content: comment
       });
 
-      setFeed((prev) =>
-        prev.map((t) =>
-          t.id === tripId
-            ? {
-                ...t,
-                comments: [
-                  ...t.comments,
-                  {
-                    id: Math.random(),
-                    user_id: userId,
-                    username,
-                    content: comment
-                  }
-                ]
-              }
-            : t
-        )
+      const updatedFeed = feed.map((t) =>
+        t.id === tripId
+          ? {
+              ...t,
+              comments: [
+                ...t.comments,
+                {
+                  id: Math.random(),
+                  user_id: userId,
+                  username,
+                  content: comment
+                }
+              ]
+            }
+          : t
       );
+      setFeed(updatedFeed);
+      // Update the cache with the new feed data
+      feedCache.current[userId] = updatedFeed;
       setCommentMap((prev) => ({ ...prev, [tripId]: '' }));
     } catch (err) {
       console.error('Failed to comment', err);
@@ -109,113 +172,125 @@ const HomePage = () => {
     );
   };
 
+  // Memoize the feed items to prevent re-renders
+  const feedItems = useMemo(() => 
+    memoizedFeed.map((trip) => (
+      <FeedCard key={trip.id} onClick={() => handleTripSelect(trip)}>
+        {trip.photos?.[0]?.url && (
+          <FeedImage
+            src={trip.photos[0].url}
+            alt={trip.city}
+          />
+        )}
+        <FeedInfo onClick={(e) => e.stopPropagation()}>
+          <FeedMeta>
+            <ProfileLink to={`/user/${trip.username}`}>
+              <Avatar
+                src={`${BACKEND_URL}/uploads/user_${trip.user_id}.png`}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = defaultAvatar;
+                }}
+                alt="user avatar"
+              />
+              <span>{trip.username}</span>
+            </ProfileLink>
+            <div>
+              <FaCalendarAlt />{' '}
+              {new Date(trip.start_date).toLocaleDateString()} -{' '}
+              {new Date(trip.end_date).toLocaleDateString()}
+            </div>
+          </FeedMeta>
+          <FeedLocation>
+            <h3>{trip.city}</h3>
+            <p>{trip.country}</p>
+          </FeedLocation>
+          <CommentSection>
+            <CommentInputRow>
+              <CommentInput
+                value={commentMap[trip.id] || ''}
+                onChange={(e) =>
+                  setCommentMap((prev) => ({
+                    ...prev,
+                    [trip.id]: e.target.value
+                  }))
+                }
+                placeholder="Write a comment..."
+              />
+              <LikeButton onClick={(e) => {
+                e.stopPropagation();
+                toggleLike(trip.id);
+              }}>
+                {trip.likes > 0 ? <FaHeart color="red" /> : <FaRegHeart />}
+                <span>{trip.likes || 0}</span>
+              </LikeButton>
+              <SubmitComment onClick={(e) => {
+                e.stopPropagation();
+                submitComment(trip.id);
+              }}>
+                <FaCommentDots />
+              </SubmitComment>
+            </CommentInputRow>
+            {trip.comments?.map((comment) => (
+              <Comment key={comment.id}>
+                <strong>{comment.username}:</strong> {comment.content}
+              </Comment>
+            ))}
+          </CommentSection>
+        </FeedInfo>
+      </FeedCard>
+    )), [memoizedFeed, handleTripSelect, commentMap]);
+
   return (
     <PageContainer>
-      <GreetingCard>
-        <Greeting>Hi, {username}!</Greeting>
-        <SubHeading>Welcome back to your travel feed 🌍</SubHeading>
-      </GreetingCard>
+      {!user ? (
+        <LoadingMessage>Please log in to view your feed</LoadingMessage>
+      ) : isLoading ? (
+        <LoadingMessage>Loading your feed...</LoadingMessage>
+      ) : (
+        <>
+          <GreetingCard>
+            <Greeting>Hi, {username}!</Greeting>
+            <SubHeading>Welcome back to your travel feed 🌍</SubHeading>
+          </GreetingCard>
 
-      <SectionCard>
-        <SectionTitle>Following Feed</SectionTitle>
-        {feed.length === 0 ? (
-          <SectionContent>No trips to show yet.</SectionContent>
-        ) : (
-          <FeedGrid>
-            {feed.map((trip) => (
-              <FeedCard key={trip.id} onClick={() => setSelectedTrip(trip)}>
-                {trip.photos?.[0]?.url && (
-                  <FeedImage
-                    src={trip.photos[0].url}
-                    alt={trip.city}
-                  />
-                )}
-                <FeedInfo onClick={(e) => e.stopPropagation()}>
-                  <FeedMeta>
-                    <ProfileLink to={`/user/${trip.username}`}>
-                      <Avatar
-                        src={`${BACKEND_URL}/uploads/user_${trip.user_id}.png`}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = defaultAvatar;
-                        }}
-                        alt="user avatar"
-                      />
-                      <span>{trip.username}</span>
-                    </ProfileLink>
-                    <div>
-                      <FaCalendarAlt />{' '}
-                      {new Date(trip.start_date).toLocaleDateString()} -{' '}
-                      {new Date(trip.end_date).toLocaleDateString()}
-                    </div>
-                  </FeedMeta>
-                  <FeedLocation>
-                    <h3>{trip.city}</h3>
-                    <p>{trip.country}</p>
-                  </FeedLocation>
-                    <CommentSection>
-                      <CommentInputRow>
-                        <CommentInput
-                          value={commentMap[trip.id] || ''}
-                          onChange={(e) =>
-                            setCommentMap((prev) => ({
-                              ...prev,
-                              [trip.id]: e.target.value
-                            }))
-                          }
-                          placeholder="Write a comment..."
-                        />
-                        <LikeButton onClick={(e) => {
-                          e.stopPropagation();
-                          toggleLike(trip.id);
-                        }}>
-                          {trip.likes?.includes(userId) ? <FaHeart color="red" /> : <FaRegHeart />}
-                          <span>{trip.likes?.length || 0}</span>
-                        </LikeButton>
-                        <SubmitComment onClick={(e) => {
-                          e.stopPropagation();
-                          submitComment(trip.id);
-                        }}>
-                          <FaCommentDots />
-                        </SubmitComment>
-                      </CommentInputRow>
-                      {trip.comments?.map((comment) => (
-                        <Comment key={comment.id}>
-                          <strong>{comment.username}:</strong> {comment.content}
-                        </Comment>
-                      ))}
-                  </CommentSection>
-                </FeedInfo>
-              </FeedCard>
-            ))}
-          </FeedGrid>
-        )}
-      </SectionCard>
+          <SectionCard>
+            <SectionTitle>Following Feed</SectionTitle>
+            {memoizedFeed.length === 0 ? (
+              <SectionContent>No trips to show yet. Follow some users to see their trips!</SectionContent>
+            ) : (
+              <FeedGrid>
+                {feedItems}
+              </FeedGrid>
+            )}
+          </SectionCard>
 
-      <SectionCard>
-        <SectionTitle>Bookmarked Cities</SectionTitle>
-        <SectionContent>Coming soon...</SectionContent>
-      </SectionCard>
+          <SectionCard>
+            <SectionTitle>Bookmarked Cities</SectionTitle>
+            <SectionContent>Coming soon...</SectionContent>
+          </SectionCard>
 
-      {selectedTrip && (
-        <TripDetail
-          trip={selectedTrip}
-          onClose={() => setSelectedTrip(null)}
-          onDelete={() => {}}
-          onCommentDelete={(deletedCommentId, tripId) => {
-            setFeed((prevFeed) =>
-              prevFeed.map((t) =>
-                t.id === tripId
-                  ? {
-                      ...t,
-                      comments: t.comments.filter((c) => c.id !== deletedCommentId)
-                    }
-                  : t
-              )
-            );
-          }}
-          onCommentAdd={handleCommentAdd}
-        />
+          {selectedTrip && (
+            <TripDetail
+              trip={selectedTrip}
+              onClose={() => setSelectedTrip(null)}
+              onDelete={() => {}}
+              onCommentDelete={(deletedCommentId, tripId) => {
+                setFeed((prevFeed) =>
+                  prevFeed.map((t) =>
+                    t.id === tripId
+                      ? {
+                          ...t,
+                          comments: t.comments.filter((c) => c.id !== deletedCommentId)
+                        }
+                      : t
+                  )
+                );
+              }}
+              onCommentAdd={handleCommentAdd}
+            />
+          )}
+        </>
       )}
     </PageContainer>
   );
@@ -231,6 +306,13 @@ const PageContainer = styled.div`
   padding: 40px 20px;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   animation: ${fadeIn} 0.5s ease-out;
+`;
+
+const LoadingMessage = styled.div`
+  text-align: center;
+  font-size: 24px;
+  color: #666;
+  margin-top: 100px;
 `;
 
 const GreetingCard = styled.div`

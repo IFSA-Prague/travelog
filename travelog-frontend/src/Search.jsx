@@ -2,8 +2,10 @@ import styled, { keyframes } from 'styled-components';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import defaultAvatar from './assets/default-avatar.jpg';
 import searchIllustration from './assets/search-illustration.svg';
+import { FaSearch, FaUser, FaMapMarkerAlt } from 'react-icons/fa';
+
+const DEFAULT_AVATAR_URL = '/default-avatar.jpg';
 
 const fadeIn = keyframes`
   from {
@@ -16,9 +18,12 @@ const fadeIn = keyframes`
   }
 `;
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
 const Search = () => {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState([]);
+  const [cities, setCities] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [displayedUsers, setDisplayedUsers] = useState([]);
   const [page, setPage] = useState(1);
@@ -53,8 +58,8 @@ const Search = () => {
     const fetchUsers = async () => {
       try {
         const [usersRes, followingRes] = await Promise.all([
-          axios.get('/users'),
-          axios.get(`/users/${currentUser.id}/following`)
+          axios.get(`${BACKEND_URL}/users`),
+          axios.get(`${BACKEND_URL}/users/${currentUser.id}/following`)
         ]);
         const validUsers = Array.isArray(usersRes.data) ? usersRes.data : [];
         setUsers(validUsers);
@@ -75,10 +80,7 @@ const Search = () => {
           (u) => u.id !== currentUser?.id && u.username.toLowerCase().includes(lower)
         );
         setFilteredUsers(filtered);
-        
-        const initialUsers = filtered.slice(0, USERS_PER_PAGE);
-        setDisplayedUsers(initialUsers);
-        
+        setDisplayedUsers(filtered.slice(0, USERS_PER_PAGE));
         setHasMore(filtered.length > USERS_PER_PAGE);
         setPage(1);
       } else {
@@ -96,10 +98,11 @@ const Search = () => {
     } else {
       setFilteredUsers([]);
       setDisplayedUsers([]);
+      setCities([]);
       setPage(1);
       setHasMore(false);
     }
-  }, [query, users, currentUser, searchType]);
+  }, [query, searchType, users, currentUser]);
 
   const loadMoreUsers = useCallback(() => {
     if (isLoading || !hasMore) return;
@@ -137,13 +140,33 @@ const Search = () => {
 
   const isFollowing = (userId) => following.some((u) => u.id === userId);
   const toggleFollow = async (targetId) => {
+    if (!currentUser) {
+      console.error("No current user found");
+      return;
+    }
+    
     try {
       const action = isFollowing(targetId) ? 'unfollow' : 'follow';
-      await axios.post(`/users/${currentUser.id}/${action}`, { target_user_id: targetId });
-      const updated = await axios.get(`/users/${currentUser.id}/following`);
+      await axios.post(`${BACKEND_URL}/users/${currentUser.id}/${action}`, { target_user_id: targetId });
+      
+      // Optimistically update the UI
+      setFollowing(prev => {
+        if (action === 'follow') {
+          const targetUser = users.find(u => u.id === targetId);
+          return [...prev, targetUser];
+        } else {
+          return prev.filter(u => u.id !== targetId);
+        }
+      });
+
+      // Then fetch the actual updated following list
+      const updated = await axios.get(`${BACKEND_URL}/users/${currentUser.id}/following`);
       setFollowing(Array.isArray(updated.data) ? updated.data : []);
     } catch (err) {
       console.error("Failed to follow/unfollow", err);
+      // Revert the optimistic update if the request failed
+      const updated = await axios.get(`${BACKEND_URL}/users/${currentUser.id}/following`);
+      setFollowing(Array.isArray(updated.data) ? updated.data : []);
     }
   };
 
@@ -160,7 +183,10 @@ const Search = () => {
     navigate(`/user/${username}`);
   };
 
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const handleCityClick = (cityId) => {
+    navigate(`/city/${cityId}`);
+  };
+
   const getAvatarUrl = (userId) => `${BACKEND_URL}/uploads/user_${userId}.png`;
 
   return (
@@ -214,14 +240,17 @@ const Search = () => {
                           src={getAvatarUrl(user.id)}
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = defaultAvatar;
+                            e.target.src = DEFAULT_AVATAR_URL;
                           }}
                         />
                         <Username>{user.username}</Username>
                       </UserInfo>
                       <FollowButton
                         $following={isFollowing(user.id)}
-                        onClick={() => toggleFollow(user.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFollow(user.id);
+                        }}
                       >
                         {isFollowing(user.id) ? 'Unfollow' : 'Follow'}
                       </FollowButton>
@@ -238,8 +267,8 @@ const Search = () => {
           </>
         ) : (
           <>
-            {query && trips.length === 0 && (
-              <NoResults>No trips found in this city.</NoResults>
+            {query && cities.length === 0 && (
+              <NoResults>No cities found.</NoResults>
             )}
             {cities.length > 0 && (
               <TripsList>
@@ -256,7 +285,7 @@ const Search = () => {
                     </TripInfo>
                   </TripCard>
                 ))}
-              </TripsList>
+              </CityResults>
             )}
             {selectedTrip && (
               <TripModal onClose={() => setSelectedTrip(null)}>
@@ -330,6 +359,7 @@ const Card = styled.div`
   max-width: 700px;
   width: 100%;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  margin-top: 20px;
 `;
 const Heading = styled.h1`
   font-size: 28px;
@@ -337,6 +367,7 @@ const Heading = styled.h1`
   color: #1a1a1a;
   margin-bottom: 24px;
   text-align: center;
+  padding-top: 20px;
 `;
 const SearchRow = styled.div`
   display: flex;
@@ -345,6 +376,7 @@ const SearchRow = styled.div`
   border-radius: 999px;
   padding: 12px 20px;
   margin-bottom: 24px;
+  margin-top: 20px;
 `;
 const SearchInput = styled.input`
   flex: 1;
@@ -469,91 +501,126 @@ const SearchTypeButton = styled.button`
   }
 `;
 
-const TripsList = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-`;
-
-const TripCard = styled.div`
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
-
-  &:hover {
-    transform: translateY(-4px);
-  }
-`;
-
-const TripImage = styled.div`
-  position: relative;
-  width: 100%;
-  height: 150px;
-  background: ${props => props.$hasImage ? 'none' : '#f0f0f0'};
+const SearchTabs = styled.div`
   display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
+  gap: 10px;
+  margin-bottom: 20px;
 `;
 
-const MapIcon = styled.div`
-  font-size: 32px;
-  color: #4263eb;
-  opacity: 0.8;
-`;
-
-const TripInfo = styled.div`
-  padding: 16px;
-`;
-
-const TripLocation = styled.div`
-  margin-bottom: 8px;
-`;
-
-const City = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0;
-`;
-
-const Country = styled.p`
-  font-size: 14px;
-  color: #666;
-  margin: 4px 0 0 0;
-`;
-
-const TripDates = styled.p`
-  font-size: 14px;
-  color: #666;
-  margin: 8px 0 0 0;
-`;
-
-const TripUser = styled.div`
+const Tab = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 8px 0;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: ${props => props.$active ? '#3b5bdb' : '#f5f5f5'};
+  color: ${props => props.$active ? 'white' : '#666'};
   cursor: pointer;
-  color: #3b5bdb;
+  font-size: 14px;
   font-weight: 500;
+  transition: all 0.2s;
 
   &:hover {
-    text-decoration: underline;
+    background: ${props => props.$active ? '#2f4ac0' : '#e0e0e0'};
   }
 `;
 
-const UserIcon = styled.span`
+const CityResults = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-height: 440px;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-top: 20px;
+
+  /* Scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c5c5c5;
+    border-radius: 4px;
+    
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
+
+  /* Firefox scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: #c5c5c5 #f1f1f1;
+`;
+
+const CityCard = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  min-height: 80px;  // Add minimum height
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+`;
+
+const CityIcon = styled.div`
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f4ff;
+  border-radius: 50%;
+  margin-right: 15px;
+  color: #3b5bdb;
+`;
+
+const CityInfo = styled.div`
+  flex: 1;
+  overflow: hidden;  // Prevent text overflow
+`;
+
+const CityName = styled.h3`
+  margin: 0;
   font-size: 16px;
+  color: #1a1a1a;
+  white-space: normal;  // Allow text to wrap
+  word-wrap: break-word;  // Break long words if necessary
+`;
+
+const CityCountry = styled.p`
+  margin: 4px 0;
+  font-size: 14px;
+  color: #666;
+  white-space: normal;  // Allow text to wrap
+  word-wrap: break-word;  // Break long words if necessary
+`;
+
+const CityStats = styled.div`
+  display: flex;
+  gap: 15px;
+  margin-top: 8px;
+`;
+
+const Stat = styled.span`
+  font-size: 13px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 `;
 
 const TripModal = styled.div`
