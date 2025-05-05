@@ -101,17 +101,24 @@ const HomePage = () => {
 
   const toggleLike = async (tripId) => {
     try {
-      await axios.post(`${BACKEND_URL}/trips/${tripId}/like`, { user_id: userId });
-      setFeed((prev) =>
-        prev.map((t) =>
-          t.id === tripId
-            ? {
-                ...t,
-                likes: t.likes + 1
-              }
-            : t
-        )
+      const trip = feed.find(t => t.id === tripId);
+      const isLiked = trip.likes > 0;
+      
+      // Call the appropriate endpoint based on current like status
+      const endpoint = isLiked ? 'unlike' : 'like';
+      await axios.post(`${BACKEND_URL}/trips/${tripId}/${endpoint}`, { user_id: userId });
+      
+      const updatedFeed = feed.map((t) =>
+        t.id === tripId
+          ? {
+              ...t,
+              likes: isLiked ? Math.max(0, t.likes - 1) : t.likes + 1
+            }
+          : t
       );
+      setFeed(updatedFeed);
+      // Update the cache with the new feed data
+      feedCache.current[userId] = updatedFeed;
     } catch (err) {
       console.error('Failed to like/unlike', err);
     }
@@ -127,24 +134,25 @@ const HomePage = () => {
         content: comment
       });
 
-      setFeed((prev) =>
-        prev.map((t) =>
-          t.id === tripId
-            ? {
-                ...t,
-                comments: [
-                  ...t.comments,
-                  {
-                    id: Math.random(),
-                    user_id: userId,
-                    username,
-                    content: comment
-                  }
-                ]
-              }
-            : t
-        )
+      const updatedFeed = feed.map((t) =>
+        t.id === tripId
+          ? {
+              ...t,
+              comments: [
+                ...t.comments,
+                {
+                  id: Math.random(),
+                  user_id: userId,
+                  username,
+                  content: comment
+                }
+              ]
+            }
+          : t
       );
+      setFeed(updatedFeed);
+      // Update the cache with the new feed data
+      feedCache.current[userId] = updatedFeed;
       setCommentMap((prev) => ({ ...prev, [tripId]: '' }));
     } catch (err) {
       console.error('Failed to comment', err);
