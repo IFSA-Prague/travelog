@@ -73,10 +73,10 @@ class Trip(db.Model):
     favorite_attractions = db.Column(db.Text, nullable=True)
     other_notes = db.Column(db.Text, nullable=True)
     photos = db.Column(db.JSON, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # NEW FIELD
-
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
     user = db.relationship('User', backref=db.backref('trips', lazy=True))
-
+    
     def to_dict(self):
         photos = self.photos or []
         for photo in photos:
@@ -108,6 +108,11 @@ class Trip(db.Model):
                 'created_at': c.created_at.isoformat()
             } for c in comments]
         }
+class City(db.Model):
+    __tablename__ = 'cities'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    country = db.Column(db.String(120), nullable=False)
 
 # ----------------------- User Routes -----------------------
 
@@ -369,6 +374,71 @@ def get_trip(trip_id):
     if not trip:
         return jsonify({'error': 'Trip not found'}), 404
     return jsonify(trip.to_dict()), 200
+
+# ----------------------- City Routes -----------------------
+def parse_city_id(city_id):
+    try:
+        parts = city_id.split('_')
+        city = parts[0].replace('-', ' ').title()
+        country = '_'.join(parts[1:]).replace('-', ' ').title()
+        return city, country
+    except:
+        return None, None
+
+@app.route('/cities/<city_id>', methods=['GET'])
+def get_city(city_id):
+    city_name, country = parse_city_id(city_id)
+    if not city_name or not country:
+        return jsonify({"error": "Invalid city ID"}), 400
+    trip = Trip.query.filter_by(city=city_name, country=country).first()
+    if not trip:
+        return jsonify({"error": "City not found"}), 404
+    return jsonify({
+        "name": city_name,
+        "country": country
+    })
+
+@app.route('/cities/<city_id>/trips', methods=['GET'])
+def get_city_trips(city_id):
+    city_name, country = parse_city_id(city_id)
+    trips = Trip.query.filter_by(city=city_name, country=country).order_by(Trip.created_at.desc()).all()
+    return jsonify([trip.to_dict() for trip in trips])
+
+@app.route('/cities/<city_id>/users', methods=['GET'])
+def get_city_users(city_id):
+    city_name, country = parse_city_id(city_id)
+    trips = Trip.query.filter_by(city=city_name, country=country).all()
+    user_ids = list({trip.user_id for trip in trips})
+    users = User.query.filter(User.id.in_(user_ids)).all()
+    return jsonify([{
+        "id": u.id,
+        "username": u.username,
+        "avatar_url": f"/uploads/user_{u.id}.png"
+    } for u in users])
+    
+@app.route('/cities/search', methods=['GET'])
+def search_cities():
+    query = request.args.get('q', '').strip().lower()
+    if not query:
+        return jsonify([])
+
+    # Get all unique (city, country) pairs that match the query
+    trips = Trip.query.all()
+    matched = []
+    seen = set()
+    for trip in trips:
+        city_country = f"{trip.city}, {trip.country}".lower()
+        if query in city_country:
+            key = (trip.city.lower(), trip.country.lower())
+            if key not in seen:
+                seen.add(key)
+                matched.append({
+                    "city": trip.city,
+                    "country": trip.country,
+                    "city_id": f"{trip.city.lower().replace(' ', '-')}_{trip.country.lower().replace(' ', '-')}"
+                })
+
+    return jsonify(matched)
 
 # ----------------------- Upload Access -----------------------
 @app.route('/uploads/<filename>')

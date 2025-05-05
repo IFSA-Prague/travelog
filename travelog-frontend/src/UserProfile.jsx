@@ -17,6 +17,13 @@ const UserProfile = () => {
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [avatarSrc, setAvatarSrc] = useState(defaultAvatar);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    setCurrentUser(storedUser);
+  }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -36,6 +43,12 @@ const UserProfile = () => {
         setFollowers(followersRes.data || []);
         setFollowing(followingRes.data || []);
 
+        // Check if current user is following this user
+        if (currentUser) {
+          const isFollowingUser = followersRes.data.some(f => f.id === currentUser.id);
+          setIsFollowing(isFollowingUser);
+        }
+
         const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
         setAvatarSrc(`${BACKEND_URL}/uploads/user_${targetUser.id}.png?v=${Date.now()}`);
       } catch (err) {
@@ -44,7 +57,28 @@ const UserProfile = () => {
     };
 
     fetchUserData();
-  }, [username, navigate]);
+  }, [username, navigate, currentUser]);
+
+  const handleFollowToggle = async () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const action = isFollowing ? 'unfollow' : 'follow';
+      await axios.post(`/users/${currentUser.id}/${action}`, { target_user_id: userData.id });
+      
+      // Update followers list
+      const updatedFollowers = await axios.get(`/users/${userData.id}/followers`);
+      setFollowers(updatedFollowers.data || []);
+      
+      // Update following status
+      setIsFollowing(!isFollowing);
+    } catch (err) {
+      console.error('Failed to follow/unfollow', err);
+    }
+  };
 
   if (!userData) return <div>Loading profile...</div>;
 
@@ -81,6 +115,15 @@ const UserProfile = () => {
               <Label>Following</Label>
             </Stat>
           </Stats>
+
+          {currentUser && currentUser.id !== userData.id && (
+            <FollowButton 
+              onClick={handleFollowToggle}
+              isFollowing={isFollowing}
+            >
+              {isFollowing ? 'Unfollow' : 'Follow'}
+            </FollowButton>
+          )}
         </ProfileContent>
       </ProfileCard>
     </PageContainer>
@@ -176,4 +219,25 @@ const Number = styled.div`
 const Label = styled.div`
   font-size: 14px;
   color: #666;
+`;
+
+const FollowButton = styled.button`
+  margin-top: 20px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background-color: ${props => props.isFollowing ? '#e74c3c' : '#4263eb'};
+  color: white;
+
+  &:hover {
+    background-color: ${props => props.isFollowing ? '#c0392b' : '#364fc7'};
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `;

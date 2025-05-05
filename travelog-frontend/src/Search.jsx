@@ -34,6 +34,7 @@ const Search = () => {
   const [searchType, setSearchType] = useState('users');
   const [selectedTrip, setSelectedTrip] = useState(null);
   const navigate = useNavigate();
+  const [cities, setCities] = useState([]);
 
   useEffect(() => {
     try {
@@ -81,16 +82,16 @@ const Search = () => {
         setHasMore(filtered.length > USERS_PER_PAGE);
         setPage(1);
       } else {
-        const searchTrips = async () => {
-          try {
-            const response = await axios.get(`/trips/search/${query}`);
-            setTrips(response.data);
-          } catch (error) {
-            console.error("Error searching trips:", error);
-            setTrips([]);
-          }
-        };
-        searchTrips();
+          const searchCities = async () => {
+            try {
+              const response = await axios.get(`/cities/search?q=${encodeURIComponent(query)}`);
+              setCities(response.data);
+            } catch (error) {
+              console.error("Error searching cities:", error);
+              setCities([]);
+            }
+          };
+          searchCities();
       }
     } else {
       setFilteredUsers([]);
@@ -240,32 +241,18 @@ const Search = () => {
             {query && trips.length === 0 && (
               <NoResults>No trips found in this city.</NoResults>
             )}
-            {trips.length > 0 && (
+            {cities.length > 0 && (
               <TripsList>
-                {trips.map((trip) => (
-                  <TripCard key={trip.id} onClick={() => handleTripClick(trip)}>
-                    <TripImage $hasImage={trip.photos && trip.photos.length > 0}>
-                      {trip.photos && trip.photos.length > 0 ? (
-                        <img src={trip.photos[0].url} alt={`${trip.city} trip`} />
-                      ) : (
-                        <MapIcon>📍</MapIcon>
-                      )}
+                {cities.map(city => (
+                  <TripCard key={city.city_id} onClick={() => navigate(`/city/${city.city_id}`)}>
+                    <TripImage $hasImage={false}>
+                      <MapIcon>📍</MapIcon>
                     </TripImage>
                     <TripInfo>
                       <TripLocation>
-                        <City>{trip.city}</City>
-                        <Country>{trip.country}</Country>
+                        <City>{city.city}</City>
+                        <Country>{city.country}</Country>
                       </TripLocation>
-                      <TripUser onClick={(e) => {
-                        e.stopPropagation();
-                        handleUserClick(trip.username);
-                      }}>
-                        <UserIcon>👤</UserIcon>
-                        <Username>{trip.username}</Username>
-                      </TripUser>
-                      <TripDates>
-                        {new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}
-                      </TripDates>
                     </TripInfo>
                   </TripCard>
                 ))}
