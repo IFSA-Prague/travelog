@@ -1,2 +1,26 @@
-venv/
+# Node (frontend)
+node_modules/
+dist/
+.vite/
 
+# Python (backend)
+venv/
+__pycache__/
+*.pyc
+instance/
+.mypy_cache/
+.env
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# dotenv
+.env
+.env.*
+!.env.example

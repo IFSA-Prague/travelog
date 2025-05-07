@@ -1,0 +1,8 @@
+flask
+flask-cors
+flask-sqlalchemy
+psycopg2
+flask-jwt-extended
+werkzeug
+flask-migrate
+python-dotenv
