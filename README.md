@@ -1,4 +1,10 @@
 # travelog
+## How to Run travelog
+- Clone the repo
+- Run setup script: `./setup.sh`
+- Follow setup script instructions:
+    - Backend: adjust .env.example file as instructed and run `python3 app.py` in travelog-backend directory
+    - Frontend: run `npm run dev` in travelog-frontend directory
 
 ### Team
 Natalie Ramirez, Ansh Suryawanshi, Isabella De Sousa, Luca Rizzo, Aidan Benedict
